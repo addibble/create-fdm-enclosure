@@ -4,73 +4,69 @@ import {
   type PipelineStep,
 } from "@tscircuit/solver-utils"
 import type { GraphicsObject } from "graphics-debug"
-import { ComposeEnclosureSolver } from "./solvers/compose-enclosure-solver"
-import { CreateApertureCutoutsSolver } from "./solvers/create-aperture-cutouts-solver"
-import { CreateEnclosureShellSolver } from "./solvers/create-enclosure-shell-solver"
-import { ResolveEnclosureDimensionsSolver } from "./solvers/resolve-enclosure-dimensions-solver"
+import { ComposeFdmEnclosureSolver } from "./fdm/compose-fdm-enclosure-solver"
+import { CreateFdmApertureCutoutsSolver } from "./fdm/create-fdm-aperture-cutouts-solver"
+import { CreateFdmEnclosureShellSolver } from "./fdm/create-fdm-enclosure-shell-solver"
+import { ResolveFdmEnclosureProblemSolver } from "./fdm/resolve-fdm-enclosure-problem-solver"
 import type { CreateFdmEnclosureInput, CreateFdmEnclosureOutput } from "./types"
-import { visualizeEnclosure } from "./visualize-enclosure"
+import { visualizeFdmEnclosure } from "./fdm/visualize-fdm-enclosure"
 
 const requireStage = <T>(stage: T | undefined, name: string): T => {
   if (!stage) throw new Error(`${name} has not completed`)
   return stage
 }
 
+/**
+ * Resolution happens once, in the first stage. Every later stage receives only
+ * the `ResolvedFdmEnclosureInput` it produced, so no construction stage applies
+ * a default, resolves a fallback, or re-runs a validation rule.
+ */
 export class CreateFdmEnclosureSolver extends BasePipelineSolver<CreateFdmEnclosureInput> {
-  resolveEnclosureDimensionsSolver?: ResolveEnclosureDimensionsSolver
-  createEnclosureShellSolver?: CreateEnclosureShellSolver
-  createApertureCutoutsSolver?: CreateApertureCutoutsSolver
-  composeEnclosureSolver?: ComposeEnclosureSolver
+  resolveFdmEnclosureProblemSolver?: ResolveFdmEnclosureProblemSolver
+  createFdmEnclosureShellSolver?: CreateFdmEnclosureShellSolver
+  createFdmApertureCutoutsSolver?: CreateFdmApertureCutoutsSolver
+  composeFdmEnclosureSolver?: ComposeFdmEnclosureSolver
+
+  private getResolvedProblem() {
+    return requireStage(
+      this.resolveFdmEnclosureProblemSolver,
+      "resolveFdmEnclosureProblemSolver",
+    ).getOutput()
+  }
 
   override pipelineDef: PipelineStep<any>[] = [
     definePipelineStep(
-      "resolveEnclosureDimensionsSolver",
-      ResolveEnclosureDimensionsSolver,
+      "resolveFdmEnclosureProblemSolver",
+      ResolveFdmEnclosureProblemSolver,
       (pipeline: CreateFdmEnclosureSolver) => [pipeline.inputProblem],
     ),
     definePipelineStep(
-      "createEnclosureShellSolver",
-      CreateEnclosureShellSolver,
+      "createFdmEnclosureShellSolver",
+      CreateFdmEnclosureShellSolver,
       (pipeline: CreateFdmEnclosureSolver) => [
-        {
-          input: pipeline.inputProblem,
-          dimensions: requireStage(
-            pipeline.resolveEnclosureDimensionsSolver,
-            "resolveEnclosureDimensionsSolver",
-          ).getOutput(),
-        },
+        { resolved: pipeline.getResolvedProblem() },
       ],
     ),
     definePipelineStep(
-      "createApertureCutoutsSolver",
-      CreateApertureCutoutsSolver,
+      "createFdmApertureCutoutsSolver",
+      CreateFdmApertureCutoutsSolver,
       (pipeline: CreateFdmEnclosureSolver) => [
-        {
-          input: pipeline.inputProblem,
-          dimensions: requireStage(
-            pipeline.resolveEnclosureDimensionsSolver,
-            "resolveEnclosureDimensionsSolver",
-          ).getOutput(),
-        },
+        { resolved: pipeline.getResolvedProblem() },
       ],
     ),
     definePipelineStep(
-      "composeEnclosureSolver",
-      ComposeEnclosureSolver,
+      "composeFdmEnclosureSolver",
+      ComposeFdmEnclosureSolver,
       (pipeline: CreateFdmEnclosureSolver) => [
         {
-          input: pipeline.inputProblem,
-          dimensions: requireStage(
-            pipeline.resolveEnclosureDimensionsSolver,
-            "resolveEnclosureDimensionsSolver",
-          ).getOutput(),
-          shellPlan: requireStage(
-            pipeline.createEnclosureShellSolver,
-            "createEnclosureShellSolver",
+          resolved: pipeline.getResolvedProblem(),
+          shellPlans: requireStage(
+            pipeline.createFdmEnclosureShellSolver,
+            "createFdmEnclosureShellSolver",
           ).getOutput(),
           apertureCutouts: requireStage(
-            pipeline.createApertureCutoutsSolver,
-            "createApertureCutoutsSolver",
+            pipeline.createFdmApertureCutoutsSolver,
+            "createFdmApertureCutoutsSolver",
           ).getOutput(),
         },
       ],
@@ -83,19 +79,20 @@ export class CreateFdmEnclosureSolver extends BasePipelineSolver<CreateFdmEnclos
 
   override getOutput(): CreateFdmEnclosureOutput {
     if (!this.solved) throw new Error("FDM enclosure solver has not completed")
+    const resolved = this.getResolvedProblem()
+    const composedPlans = requireStage(
+      this.composeFdmEnclosureSolver,
+      "composeFdmEnclosureSolver",
+    ).getOutput()
     return {
-      dimensions: requireStage(
-        this.resolveEnclosureDimensionsSolver,
-        "resolveEnclosureDimensionsSolver",
-      ).getOutput(),
+      dimensions: resolved.dimensions,
+      frame: resolved.frame,
+      parts: composedPlans.parts,
       apertures: requireStage(
-        this.createApertureCutoutsSolver,
-        "createApertureCutoutsSolver",
+        this.createFdmApertureCutoutsSolver,
+        "createFdmApertureCutoutsSolver",
       ).getOutput(),
-      jscadPlan: requireStage(
-        this.composeEnclosureSolver,
-        "composeEnclosureSolver",
-      ).getOutput(),
+      jscadPlan: composedPlans.assembledPlan,
     }
   }
 
@@ -104,12 +101,11 @@ export class CreateFdmEnclosureSolver extends BasePipelineSolver<CreateFdmEnclos
   }
 
   override finalVisualize(): GraphicsObject {
-    const output = this.getOutput()
-    return visualizeEnclosure({
+    const resolved = this.getResolvedProblem()
+    return visualizeFdmEnclosure({
       title: "Final FDM enclosure",
-      input: this.inputProblem,
-      dimensions: output.dimensions,
-      processedApertureCount: output.apertures.length,
+      resolved,
+      processedApertureCount: resolved.apertures.length,
     })
   }
 }

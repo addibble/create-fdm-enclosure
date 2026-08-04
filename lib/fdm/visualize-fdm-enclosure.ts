@@ -1,25 +1,32 @@
 import type { GraphicsObject } from "graphics-debug"
-import { getApertureDimensions } from "./apertures/get-aperture-dimensions"
+import {
+  type EnclosureFace,
+  getEnclosureSpanAlongAxis,
+  getFaceTangentAxes,
+  isHorizontalFace,
+  type ResolvedEnclosureAperturePlacement,
+} from "../enclosure"
 import type {
-  CreateFdmEnclosureInput,
-  EnclosureApertureInput,
-  EnclosureWall,
-  ResolvedEnclosureDimensions,
+  ResolvedFdmEnclosureDimensions,
+  ResolvedFdmEnclosureInput,
 } from "./types"
 
-const WALL_ORDER: EnclosureWall[] = ["front", "right", "back", "left"]
+const WALL_ORDER: EnclosureFace[] = ["y_pos", "x_pos", "y_neg", "x_neg"]
 const PANEL_GAP = 5
 
+/**
+ * How wide a wall is when laid flat -- its span along its own first tangent
+ * axis, which is the same quantity an aperture is bounds-checked against.
+ */
 const getWallLength = (
-  wall: EnclosureWall,
-  dimensions: ResolvedEnclosureDimensions,
-): number =>
-  wall === "front" || wall === "back" ? dimensions.width : dimensions.height
+  wall: EnclosureFace,
+  dimensions: ResolvedFdmEnclosureDimensions,
+): number => getEnclosureSpanAlongAxis(dimensions, getFaceTangentAxes(wall)[0])
 
 const getWallPanelCenters = (
-  dimensions: ResolvedEnclosureDimensions,
-): Map<EnclosureWall, number> => {
-  const centers = new Map<EnclosureWall, number>()
+  dimensions: ResolvedFdmEnclosureDimensions,
+): Map<EnclosureFace, number> => {
+  const centers = new Map<EnclosureFace, number>()
   const totalWidth = WALL_ORDER.reduce(
     (sum, wall) => sum + getWallLength(wall, dimensions),
     PANEL_GAP * (WALL_ORDER.length - 1),
@@ -36,8 +43,8 @@ const getWallPanelCenters = (
 }
 
 const getPanelCenter = (
-  centers: Map<EnclosureWall, number>,
-  wall: EnclosureWall,
+  centers: Map<EnclosureFace, number>,
+  wall: EnclosureFace,
 ): number => {
   const center = centers.get(wall)
   if (center === undefined) throw new Error(`Missing ${wall} wall panel`)
@@ -46,25 +53,43 @@ const getPanelCenter = (
 
 const addApertureGraphics = ({
   graphics,
-  aperture,
+  placement,
   panelCenterX,
+  planViewY,
   isProcessed,
 }: {
   graphics: GraphicsObject
-  aperture: EnclosureApertureInput
+  placement: ResolvedEnclosureAperturePlacement
   panelCenterX: number
+  planViewY: number
   isProcessed: boolean
 }): void => {
-  const { width, height } = getApertureDimensions(aperture)
-  const center = {
-    x: panelCenterX + aperture.offset,
-    y: aperture.centerZ,
-  }
+  const { aperture, width, height } = placement
+  // The unrolled strip shows every wall as if standing OUTSIDE it. Facing the
+  // front (+Y) or left (-X) wall from outside reverses the along-wall screen
+  // direction, so their offset is mirrored here to match the 3D render and the
+  // physical wall instead of appearing left/right reversed.
+  const alongWall =
+    placement.face === "y_pos" || placement.face === "y_neg"
+      ? placement.center.x
+      : placement.center.y
+  const offsetSign =
+    placement.face === "y_pos" || placement.face === "x_neg" ? -1 : 1
+  const center = isHorizontalFace(placement.face)
+    ? // Plan view: the aperture keeps its board X/Y.
+      { x: placement.center.x, y: planViewY + placement.center.y }
+    : { x: panelCenterX + offsetSign * alongWall, y: placement.center.z }
   const fill = isProcessed
     ? "rgba(239, 68, 68, 0.4)"
     : "rgba(148, 163, 184, 0.12)"
   const stroke = isProcessed ? "#dc2626" : "#94a3b8"
-  const label = `${aperture.shape} ${width.toFixed(1)}×${height.toFixed(1)}`
+  // Side-face apertures sit under a labelled wall panel, so repeating the face
+  // would be redundant. Plan-view apertures have no panel header, so they carry
+  // it -- that is the only way to tell a `top` hole from a `bottom` one.
+  const facePrefix = isHorizontalFace(placement.face)
+    ? `${placement.face} `
+    : ""
+  const label = `${facePrefix}${aperture.shape} ${width.toFixed(1)}×${height.toFixed(1)}`
 
   if (aperture.shape === "rect") {
     graphics.rects?.push({ center, width, height, fill, stroke, label })
@@ -115,17 +140,16 @@ const addApertureGraphics = ({
   )
 }
 
-export const visualizeEnclosure = ({
+export const visualizeFdmEnclosure = ({
   title,
-  input,
-  dimensions,
+  resolved,
   processedApertureCount = 0,
 }: {
   title: string
-  input: CreateFdmEnclosureInput
-  dimensions: ResolvedEnclosureDimensions
+  resolved: ResolvedFdmEnclosureInput
   processedApertureCount?: number
 }): GraphicsObject => {
+  const { board, dimensions } = resolved
   const graphics: GraphicsObject = {
     title,
     coordinateSystem: "cartesian",
@@ -136,6 +160,7 @@ export const visualizeEnclosure = ({
     texts: [],
   }
   const centers = getWallPanelCenters(dimensions)
+  const topViewY = -dimensions.height / 2 - PANEL_GAP
 
   for (const wall of WALL_ORDER) {
     const centerX = getPanelCenter(centers, wall)
@@ -157,17 +182,20 @@ export const visualizeEnclosure = ({
     })
   }
 
-  const apertures = input.apertures ?? []
-  for (const [index, aperture] of apertures.entries()) {
+  for (const [index, placement] of resolved.apertures.entries()) {
+    // Side faces are drawn on the unrolled elevation strip; `top`/`bottom` faces
+    // have no elevation, so they are drawn in the plan view instead.
     addApertureGraphics({
       graphics,
-      aperture,
-      panelCenterX: getPanelCenter(centers, aperture.wall),
+      placement,
+      panelCenterX: isHorizontalFace(placement.face)
+        ? 0
+        : getPanelCenter(centers, placement.face),
+      planViewY: topViewY,
       isProcessed: index < processedApertureCount,
     })
   }
 
-  const topViewY = -dimensions.height / 2 - PANEL_GAP
   graphics.rects?.push(
     {
       center: { x: 0, y: topViewY },
@@ -179,8 +207,8 @@ export const visualizeEnclosure = ({
     },
     {
       center: { x: 0, y: topViewY },
-      width: input.board.width,
-      height: input.board.height,
+      width: board.width,
+      height: board.height,
       fill: "rgba(34, 197, 94, 0.18)",
       stroke: "#15803d",
       label: "board",

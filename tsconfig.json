@@ -24,6 +24,7 @@
   },
   "include": [
     "lib/**/*.ts",
+    "fixtures/**/*.ts",
     "fixtures/**/*.tsx",
     "site/**/*.tsx",
     "site/**/*.d.ts",

@@ -2,14 +2,33 @@ import { expect, type MatcherResult } from "bun:test"
 import * as fs from "node:fs"
 import * as path from "node:path"
 import looksSame from "looks-same"
+import { captionPng } from "./caption-png"
+
+export interface PngSnapshotOptions {
+  /** Overrides the snapshot file name, which otherwise follows the test file. */
+  name?: string
+  /**
+   * Printed into the top of the image. State what the render is supposed to
+   * show, so a reviewer looking at the diff can tell a legitimate change from a
+   * regression that was rebaselined by reflex.
+   */
+  caption?: string | string[]
+}
 
 const toMatchPngSnapshot = async function (
   this: unknown,
   receivedValue: Buffer | Uint8Array | Promise<Buffer | Uint8Array>,
   testPath: string,
-  snapshotName?: string,
+  options?: string | PngSnapshotOptions,
 ): Promise<MatcherResult> {
-  const received = await receivedValue
+  const { name: snapshotName, caption } =
+    typeof options === "string"
+      ? { name: options, caption: undefined }
+      : (options ?? {})
+  const rendered = await receivedValue
+  const received = caption
+    ? captionPng(rendered, Array.isArray(caption) ? caption : [caption])
+    : rendered
   const testBasePath = testPath.replace(/\.test\.tsx?$/, "")
   const snapshotDirectory = path.join(
     path.dirname(testBasePath),
@@ -66,7 +85,7 @@ declare module "bun:test" {
   interface Matchers<T = unknown> {
     toMatchPngSnapshot(
       testPath: string,
-      snapshotName?: string,
+      options?: string | PngSnapshotOptions,
     ): Promise<MatcherResult>
   }
 }

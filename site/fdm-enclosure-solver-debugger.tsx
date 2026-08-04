@@ -1,6 +1,5 @@
 import { GenericSolverDebugger } from "@tscircuit/solver-utils/react"
 import "@google/model-viewer"
-import { convertJscadPlanToGltf } from "jscad-to-gltf"
 import { useEffect, useMemo, useState } from "react"
 import {
   type CreateFdmEnclosureInput,
@@ -8,6 +7,7 @@ import {
   CreateFdmEnclosureSolver,
   createFdmEnclosure,
 } from "../lib"
+import { createEnclosurePreviewGlb } from "../lib/preview/create-enclosure-preview-glb"
 
 export const FdmEnclosureSolverDebugger = ({
   input,
@@ -26,18 +26,10 @@ export const FdmEnclosureSolverDebugger = ({
     const createPreview = async (): Promise<void> => {
       try {
         const nextOutput = createFdmEnclosure(input)
-        // jscad-to-gltf currently bundles its own jscad-planner type copy.
-        const plan = nextOutput.jscadPlan as Parameters<
-          typeof convertJscadPlanToGltf
-        >[0]
-        const glb = await convertJscadPlanToGltf(plan, {
-          format: "glb",
-          meshName: "FDM Enclosure",
-          axisTransform: "jscad_y+ -> gltf_z+",
-        })
+        const glb = await createEnclosurePreviewGlb(input)
         if (disposed) return
         nextUrl = URL.createObjectURL(
-          new Blob([glb.data as ArrayBuffer], { type: glb.mimeType }),
+          new Blob([glb.data], { type: glb.mimeType }),
         )
         setOutput(nextOutput)
         setGlbUrl(nextUrl)
@@ -87,7 +79,7 @@ export const FdmEnclosureSolverDebugger = ({
           {glbUrl ? (
             <model-viewer
               src={glbUrl}
-              alt="Generated open-top FDM enclosure"
+              alt="Generated two-part FDM enclosure"
               auto-rotate
               camera-controls
               camera-orbit="45deg 65deg auto"
