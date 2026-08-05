@@ -44,7 +44,7 @@
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^5.0.0",
     "buffer": "^6.0.3",
-    "circuit-json-to-gltf": "^0.0.107",
+    "circuit-json-to-gltf": "^0.0.113",
     "looks-same": "^10.0.1",
     "pngjs": "^7.0.0",
     "poppygl": "^0.0.24",
