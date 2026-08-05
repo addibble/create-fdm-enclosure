@@ -75,6 +75,30 @@ Faces avoid named directions because an enclosure face can plausibly be ±Y *or*
 ±Z, and `top` meant both at once: as an `EnclosureFace` it used to be **+Z**,
 while `insertion_direction`'s `from_top` is **+Y**.
 
+### Migrating older face names — migrate by axis, never by word
+
+An older `EnclosureFace` used named sides, and two of those names change meaning
+under the Cartesian scheme:
+
+| old name | axis | new name |
+| --- | --- | --- |
+| `right` | +X | `x_pos` |
+| `left` | −X | `x_neg` |
+| `front` | +Y | `y_pos` |
+| `back` | −Y | `y_neg` |
+| `top` | **+Z** | `z_pos` |
+| `bottom` | **−Z** | `z_neg` |
+
+So `top → z_pos`, **not** `y_pos`. A mechanical rename that reads `top` as +Y
+moves lid apertures onto a side wall — and because the geometry still resolves,
+nothing throws and no test fails unless it happens to probe that face. After any
+such change, check that `getFaceNormalAxis` and `getFaceNormalSign`
+(`lib/enclosure/faces.ts`) agree with the intended face.
+
+The `front`/`back` rows are equally treacherous in the other direction: `front`
+is −Y in `3d-viewer`'s camera presets but +Y here, which is why the named forms
+are retired ecosystem-wide. Convert from the axis, never from the word.
+
 ### `top`/`bottom` mean different axes depending on the owner
 
 | Owner | `top` | `bottom` |
