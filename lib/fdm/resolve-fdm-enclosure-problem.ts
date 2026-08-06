@@ -2,12 +2,12 @@ import { getApertureDimensions } from "../apertures/get-aperture-dimensions"
 import { getApertureHeightDatum } from "../apertures/get-aperture-height-datum"
 import { validateApertureInput } from "../apertures/validate-aperture-input"
 import {
-  getComponentBodyFaceExtent,
   isHorizontalFace,
   type ResolvedEnclosureAperturePlacement,
 } from "../enclosure"
 import { assertApertureFitsEnclosure } from "./assert-aperture-fits-enclosure"
 import { DEFAULT_FDM_DESIGN_RULES, type FdmDesignRules } from "./design-rules"
+import { getDerivedApertureDepth } from "./get-derived-aperture-depth"
 import { getFdmApertureInwardProjection } from "./get-fdm-aperture-inward-projection"
 import {
   resolveApertureCenter,
@@ -111,10 +111,18 @@ export const resolveFdmEnclosureProblem = (
 
       // An authored depth is authoritative: it can express what a derived
       // envelope cannot, such as a tapered shell that only fouls the lip for
-      // part of its depth. Otherwise the envelope is projected onto this face.
+      // part of its depth. Otherwise the envelope is projected onto this face,
+      // converted into the datum that face measures depth in -- see
+      // `getDerivedApertureDepth`, which is what stops a tall part on a
+      // horizontal face from cutting into the plate at the other end of the box.
       const depth =
         aperture.depth ??
-        getComponentBodyFaceExtent({ body: aperture.componentBody, face }) ??
+        getDerivedApertureDepth({
+          face,
+          boardSide: aperture.boardSide,
+          componentBody: aperture.componentBody,
+          frame,
+        }) ??
         0
 
       return {

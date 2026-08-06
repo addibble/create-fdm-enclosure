@@ -81,11 +81,14 @@ const getRotatedExtent = (
  *
  * `size.z` is only a fallback for parts whose model was never measured, and it
  * is a poor one: it spans the pins and any through-board shell, so it
- * over-reports the part's reach. Projection is NOT clamped to the cavity (see
- * `get-fdm-aperture-inward-projection.ts`), so an over-reported Z extent can
- * drive a lid cut clean through the floor. Prefer measuring the model; a caller
- * relying on this fallback for a tall through-hole part should authorise the
- * depth explicitly instead.
+ * over-reports the part's reach. Prefer measuring the model; a caller relying on
+ * this fallback for a tall through-hole part should authorise the depth
+ * explicitly instead.
+ *
+ * Note this is an extent in the PART's frame, measured from the board it stands
+ * on -- not a depth. On a horizontal face the two datums are a whole cavity
+ * apart, so `getDerivedApertureDepth` converts before anything cuts with it.
+ * Using this number raw as a lid depth is what once drove a cut into the floor.
  */
 export const getComponentBodyFaceExtent = ({
   body,

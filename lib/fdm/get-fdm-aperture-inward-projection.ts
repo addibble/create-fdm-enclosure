@@ -23,14 +23,20 @@ import type { ResolvedFdmEnclosureDimensions } from "./types"
  * An authored depth is rendered as authored, on every face. Nothing is capped
  * to the cavity: a deep enough opening reaches the shell on the far side and
  * takes material out of it, exactly as drawn. That is a real risk on a
- * horizontal face, where the far shell is only millimetres away -- a 15mm
- * pushbutton through the lid will punch through the base floor beneath it.
+ * horizontal face, where the far shell is only millimetres away -- an authored
+ * 15mm through the lid will punch through the base floor beneath it.
  *
- * Capping used to hide that, and hid it inconsistently: the four side faces
+ * A *derived* depth cannot do that, because it is derived in this face's own
+ * datum and stops at the plane the part is mounted on (see
+ * `getDerivedApertureDepth`). The distinction is the point: the part's reach
+ * above the board is not a depth from the lid, and treating it as one is what
+ * put a circular pocket in the floor under a pushbutton.
+ *
+ * Capping used to blur this, and blurred it inconsistently: the four side faces
  * were never capped, so the same authored number meant "as drawn" on a wall and
  * "as much as fits" on the lid. Silently cutting a shallower hole than asked
  * for is its own defect -- the part fouls the shell and the model gives no sign
- * why. The depth an author writes is now the depth they get, and a box too
+ * why. The depth an author writes is still the depth they get, and a box too
  * shallow to contain a part is fixed by making the box deeper (see
  * `resolve-fdm-enclosure-dimensions.ts`, which grows the depth to clear the
  * apertures when `topHeadroom` was not authored) rather than by quietly
