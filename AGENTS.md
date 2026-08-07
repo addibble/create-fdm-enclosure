@@ -48,6 +48,14 @@ expressed in board space:
 | +Z | `above` | `from_above` |
 | −Z | `below` | `from_below` |
 
+There are **two** direction properties on a footprint, sharing this vocabulary,
+this frame, and one transform: `insertionDirection` names where a mating part
+attaches, `cutoutApertureDirection` names where the part's enclosure opening
+faces. They coincide for connectors and differ for anything actuated rather than
+entered -- a side-actuated switch is installed from above and actuated from the
+side. Face selection prefers the aperture direction and falls back to the
+insertion direction; see the README's "How an aperture finds its wall".
+
 **`front` and `back` are retired.** They named opposite axes in different
 packages — `3d-viewer`'s `Front` camera preset is −Y while `core`, `checks` and
 `circuit-json-to-gltf` treated front as +Y — and both readings were defensible,
