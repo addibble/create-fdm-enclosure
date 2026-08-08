@@ -147,10 +147,28 @@ export const createApertureCutoutPlan = ({
   booleanTolerance: number
 }): ResolvedEnclosureAperture => {
   const { aperture, face, center, width, height, inwardProjection } = placement
+  const incidenceDegrees = placement.incidenceDegrees ?? 0
+  const incidence = (incidenceDegrees * Math.PI) / 180
+  const lean = Math.abs(Math.tan(incidence))
+  const obliqueTraversal = 1 / Math.cos(incidence)
+
+  // A leaning tool travels further to cross the same plate -- thickness/cos --
+  // and its end face, still square to the tool, no longer lies flat against the
+  // outer surface: the trailing corner is `(width / 2) * tan` short of it. Both
+  // are added OUTBOARD, so the part of the tool that matters stays put.
+  //
+  // `inwardProjection` is deliberately not scaled. It is measured along the
+  // part's own mating axis -- the axis the tool now follows -- so the depth from
+  // the component's front to its back is the authored one whatever the angle.
+  // Scaling it would deepen the relief behind the wall as a side effect of
+  // rotating the part, which is not what the depth means.
+  const outboardExtension =
+    faceThickness * (obliqueTraversal - 1) + (width / 2) * lean
   // The tool over-extends past BOTH surfaces of the face so the boolean breaks
   // through cleanly, and continues `inwardProjection` further inboard so nothing
   // inside the enclosure (notably the lid lip) is left blocking the part.
-  const cutDepth = faceThickness + booleanTolerance * 2 + inwardProjection
+  const cutDepth =
+    faceThickness + booleanTolerance * 2 + inwardProjection + outboardExtension
 
   let localShape: JscadOperation
   switch (aperture.shape) {
@@ -187,7 +205,12 @@ export const createApertureCutoutPlan = ({
         }
 
   const normalAxis = getFaceNormalAxis(face)
-  const inwardShift = (-getFaceNormalSign(face) * inwardProjection) / 2
+  // The inboard growth moves the midpoint inboard by half of it; the outboard
+  // growth moves it back out by half of that, so the tool grows only in the
+  // direction each term was added and the plate stays in the same place inside
+  // the tool.
+  const inwardShift =
+    (-getFaceNormalSign(face) * (inwardProjection - outboardExtension)) / 2
   const origin: [number, number, number] = [center.x, center.y, center.z]
   origin[getAxisIndex(normalAxis)] += inwardShift
 
