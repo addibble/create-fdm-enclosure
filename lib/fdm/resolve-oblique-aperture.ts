@@ -1,9 +1,77 @@
 import {
+  getEnclosureSpanAlongAxis,
   getFaceNormalAxis,
   getFaceNormalSign,
   isHorizontalFace,
 } from "../enclosure"
-import type { EnclosureFace } from "../enclosure"
+import type { EnclosureFace, ResolvedEnclosureDimensions } from "../enclosure"
+
+const SIDE_FACES: EnclosureFace[] = ["x_pos", "x_neg", "y_pos", "y_neg"]
+
+/**
+ * Select the first side wall intersected by the part's continuous outward axis.
+ *
+ * `origin` is a point in enclosure-local/board-centred XY millimetres;
+ * `apertureAxisDirection` is a unitless board-space direction. The component
+ * centre is the stable origin because it is the datum the body itself rotates
+ * around. Selection is performed against the cavity's inner planes: that is the
+ * first enclosure material encountered by a ray leaving a part inside the box.
+ *
+ * Quantizing direction alone switches walls at 45 degrees regardless of where
+ * the part sits. Near a corner that can select a wall the physical axis reaches
+ * only after passing through another one. The actual ray instead changes faces
+ * exactly where it crosses the corner, preserving a continuous opening path.
+ * The caller's quantized face breaks an exact-time tie.
+ */
+export const resolveFirstFaceAlongApertureAxis = ({
+  face,
+  origin,
+  apertureAxisDirection,
+  dimensions,
+}: {
+  face: EnclosureFace
+  origin: { x: number; y: number }
+  apertureAxisDirection?: { x: number; y: number; z: number }
+  dimensions: ResolvedEnclosureDimensions
+}): EnclosureFace => {
+  if (isHorizontalFace(face) || !apertureAxisDirection) return face
+
+  const axisLength = Math.hypot(
+    apertureAxisDirection.x,
+    apertureAxisDirection.y,
+  )
+  if (!Number.isFinite(axisLength) || axisLength === 0) return face
+  const direction = {
+    x: apertureAxisDirection.x / axisLength,
+    y: apertureAxisDirection.y / axisLength,
+  }
+
+  const candidates = SIDE_FACES.flatMap((candidateFace) => {
+    const normalAxis = getFaceNormalAxis(candidateFace) as "x" | "y"
+    const normalSign = getFaceNormalSign(candidateFace)
+    const directionAlongNormal = direction[normalAxis] * normalSign
+    if (directionAlongNormal <= 0) return []
+
+    const innerPlane =
+      normalSign *
+      (getEnclosureSpanAlongAxis(dimensions, normalAxis) / 2 -
+        dimensions.wallThickness)
+    const distance = (innerPlane - origin[normalAxis]) / direction[normalAxis]
+    return Number.isFinite(distance) && distance >= 0
+      ? [{ face: candidateFace, distance }]
+      : []
+  })
+
+  if (candidates.length === 0) return face
+  candidates.sort((a, b) => {
+    const delta = a.distance - b.distance
+    if (Math.abs(delta) > 1e-9) return delta
+    if (a.face === face) return -1
+    if (b.face === face) return 1
+    return 0
+  })
+  return candidates[0]!.face
+}
 
 /**
  * Signed angle from a selected wall's outward normal to the part's actual

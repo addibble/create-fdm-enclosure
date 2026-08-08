@@ -49,7 +49,12 @@ export interface EnclosureBoardInput {
  * the opening turns with it -- see `rotation`.
  */
 interface CommonEnclosureApertureInput {
-  /** Face containing the aperture. */
+  /**
+   * Initial Cartesian face for the aperture. With no continuous axis this is
+   * the final face. When `apertureAxisDirection` is present on a side opening,
+   * resolution selects the first enclosure wall reached by that ray; this value
+   * breaks an exact corner tie.
+   */
   face: EnclosureFace
   /**
    * How far the opening is turned within the face it pierces, in degrees
@@ -95,10 +100,11 @@ interface CommonEnclosureApertureInput {
    */
   apertureAxisDirection?: { x: number; y: number; z: number }
   /**
-   * The interaction point in board coordinates, relative to the board center.
-   * The enclosure layer projects this onto `face`: the two coordinates tangent
-   * to the face center the aperture, and the coordinate along the face normal is
-   * discarded. Callers therefore never decide which axis matters.
+   * A point on the interaction axis in board coordinates, relative to the board
+   * center. With `apertureAxisDirection`, this must be the stable datum the part
+   * rotates around; the enclosure intersects that ray with its first wall. With
+   * no continuous axis, the point is projected orthogonally onto `face` and its
+   * two tangent coordinates center the aperture.
    */
   center: { x: number; y: number }
   /**

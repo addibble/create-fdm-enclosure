@@ -9,7 +9,10 @@ import { assertApertureFitsEnclosure } from "./assert-aperture-fits-enclosure"
 import { DEFAULT_FDM_DESIGN_RULES, type FdmDesignRules } from "./design-rules"
 import { getDerivedApertureDepth } from "./get-derived-aperture-depth"
 import { getFdmApertureInwardProjection } from "./get-fdm-aperture-inward-projection"
-import { getApertureIncidenceDegrees } from "./resolve-oblique-aperture"
+import {
+  getApertureIncidenceDegrees,
+  resolveFirstFaceAlongApertureAxis,
+} from "./resolve-oblique-aperture"
 import {
   resolveApertureCenter,
   resolveApertureCenterZ,
@@ -73,7 +76,16 @@ export const resolveFdmEnclosureProblem = (
 
   const resolvedApertures: ResolvedEnclosureAperturePlacement[] = apertures.map(
     (aperture, index) => {
-      const { face } = aperture
+      // The named face is the nearest axis by orientation. A continuous
+      // interaction axis carries more information: select the first cavity wall
+      // its ray actually reaches, so an off-centre part changes walls where its
+      // axis crosses the box corner rather than at an unrelated global 45°.
+      const face = resolveFirstFaceAlongApertureAxis({
+        face: aperture.face,
+        origin: aperture.center,
+        apertureAxisDirection: aperture.apertureAxisDirection,
+        dimensions,
+      })
       const prefix = `apertures[${index}]`
       const { width, height } = getApertureDimensions(aperture)
 

@@ -184,20 +184,29 @@ The same names therefore appear in two frames -- footprint-local as authored,
 board-global as emitted -- which is easy to miss, because for an unrotated part
 on the top layer the two coincide.
 
-The emitted value is the board edge the part is reached from, which is usually
-the wall its aperture must pierce, so it is what picks the face. Because the
-transform already accounts for rotation and layer, no geometric inference is
-needed.
+The emitted name gives the nearest Cartesian direction to the interaction axis.
+Core passes it as an initial face together with the paired, continuous
+board-space vector produced by the same transform. For a side opening, the
+solver casts that vector from the component's rotation datum and chooses the
+first enclosure wall the ray intersects. This matters near a corner: an
+orientation-only rule switches walls at 45 degrees regardless of where the part
+sits, while the physical axis changes walls exactly where it crosses the corner.
+The emitted name breaks an exact corner tie and remains the final answer for
+adapters that cannot supply the continuous vector.
 
 **Unless the part says otherwise.** `cutoutApertureDirection` is a second
 footprint property with the same vocabulary, the same frame, and the same
 transform, naming where the part's *opening* faces rather than where a mating
 part attaches. It is emitted as `pcb_component.cutout_aperture_direction`, and
-face selection prefers it:
+axis selection prefers it:
 
 1. `cutout_aperture_direction`, else
 2. `insertion_direction`, else
 3. proximity to the nearest board edge -- the only step that guesses.
+
+For steps 1 and 2, the transformed continuous axis selects the first wall it
+physically reaches as described above. Step 3 has no authored axis, so its
+nearest-edge face is used directly and the cut remains square to that wall.
 
 The two coincide for every connector, which is why the fallback is the common
 case: a cable arrives through the opening it needs. They come apart on a part
@@ -208,9 +217,11 @@ above a lever pointing at a wall. Declaring both is what places the opening in
 the wall while leaving the installation fact intact for anything else that reads
 it.
 
-Both directions ride the *same* `transformFootprintInsertionDirection`, so a
-rotated or bottom-mounted part carries them around together. Deriving them
-separately is how the two would come to disagree about the same part.
+Both directions ride the same paired transform: its continuous vector orients
+the physical axis, and `transformFootprintInsertionDirection` quantizes that
+vector for the Circuit JSON name. A rotated or bottom-mounted part therefore
+carries both facts around together. Deriving the angle from rotation or the face
+from a second transform is how they came to disagree about the same part.
 
 `from_above` and `from_below` are the exception: they name +Z and -Z rather than a
 side, so the aperture exits through the lid or the floor. Which one is carried by
