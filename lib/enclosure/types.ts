@@ -77,6 +77,24 @@ interface CommonEnclosureApertureInput {
    */
   rotation?: number
   /**
+   * Continuous outward axis of the part's enclosure interaction, expressed as
+   * a unit **direction** in the board's right-handed XYZ frame (+Z above the
+   * board). It receives rotation and layer orientation but no translation;
+   * units therefore do not apply.
+   *
+   * On a side face the enclosure measures this vector against the selected
+   * face's outward normal to obtain the signed incidence angle. This must remain
+   * separate from `face`: the face is the nearest quantized Cartesian choice,
+   * while this vector preserves the physical angle within that choice. In
+   * particular, reconstructing the vector from `rotation` is ambiguous at
+   * exactly +/-45 degrees and is wrong when the footprint's local direction is
+   * not the assumed axis.
+   *
+   * Optional for adapters that do not know the part's interaction direction;
+   * absent means the part is treated as square to its selected face.
+   */
+  apertureAxisDirection?: { x: number; y: number; z: number }
+  /**
    * The interaction point in board coordinates, relative to the board center.
    * The enclosure layer projects this onto `face`: the two coordinates tangent
    * to the face center the aperture, and the coordinate along the face normal is

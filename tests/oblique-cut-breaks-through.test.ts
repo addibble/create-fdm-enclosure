@@ -3,9 +3,10 @@ import * as jscadModeling from "@jscad/modeling"
 import { executeJscadOperations } from "jscad-planner"
 import { createFdmEnclosure } from "../lib"
 
-/** A side-entry part meeting its wall at `rotation` degrees off square. */
-const enclosureWith = (rotation: number) =>
-  createFdmEnclosure({
+/** A from-left part meeting its selected wall after a board-Z rotation. */
+const enclosureWith = (rotation: number) => {
+  const axisRadians = ((180 + rotation) * Math.PI) / 180
+  return createFdmEnclosure({
     board: { width: 52, height: 36, thickness: 1.6 },
     apertures: [
       {
@@ -14,10 +15,16 @@ const enclosureWith = (rotation: number) =>
         radius: 3.25,
         center: { x: -19, y: 6 },
         rotation,
+        apertureAxisDirection: {
+          x: Math.cos(axisRadians),
+          y: Math.sin(axisRadians),
+          z: 0,
+        },
         depth: 6,
       },
     ],
   })
+}
 
 const baseGeom = (rotation: number) => {
   const part = enclosureWith(rotation).parts.find((p) => p.id === "base")!
@@ -33,7 +40,7 @@ const baseGeom = (rotation: number) => {
  * slack in `booleanTolerance` leaves a sliver of wall across part of the
  * opening -- a hole that looks right in section and is not open.
  */
-test.each([0, -30, 30, -44])(
+test.each([0, -30, 30, -44, -45, 45])(
   "the opening is fully open through the wall at %s degrees",
   (rotation) => {
     const geom = baseGeom(rotation)

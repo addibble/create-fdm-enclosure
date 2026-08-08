@@ -4,24 +4,37 @@ import {
   getObliqueTangentShift,
 } from "../lib/fdm/resolve-oblique-aperture"
 
+const directionAtDegrees = (degrees: number) => {
+  const radians = (degrees * Math.PI) / 180
+  return { x: Math.cos(radians), y: Math.sin(radians), z: 0 }
+}
+
 /**
- * A wall is axis-aligned and a part is not. Face selection quantizes to the
- * nearest of four walls, so any rotation that is not a multiple of 90 degrees
- * leaves the part leaning against the wall it exits through -- and the cut has
- * to lean with it, or the hole is the wrong shape in the wrong place.
+ * The incidence is measured between two board-space directions: the exact part
+ * axis and the normal of the face core selected. It is not reconstructed from
+ * component rotation. In particular, the two exact 45-degree ties stay on the
+ * same x_neg face but lean in opposite directions; collapsing both to -45 was
+ * what sent one cutter through the adjacent wall.
  */
 test.each([
-  [0, 0],
-  [-30, -30],
-  [90, 0], // square to the next wall round
-  [-60, 30], // past 45: the next wall is nearer, leaning the other way
-  [45, -45], // the boundary belongs to one side, not both
-  [330, -30], // normalized rotations behave the same
-])("a part rotated %s degrees meets its wall at %s", (rotation, expected) => {
-  expect(getApertureIncidenceDegrees({ face: "x_neg", rotation })).toBeCloseTo(
-    expected,
-  )
-})
+  ["x_neg", 180, 0],
+  ["x_neg", 150, -30],
+  ["x_neg", 225, 45],
+  ["x_neg", 135, -45],
+  ["y_pos", 120, 30],
+  ["y_neg", 226, -44],
+  ["x_pos", 30, 30],
+] as const)(
+  "%s normal to an axis at %s degrees has signed incidence %s",
+  (face, axisDegrees, expected) => {
+    expect(
+      getApertureIncidenceDegrees({
+        face,
+        apertureAxisDirection: directionAtDegrees(axisDegrees),
+      }),
+    ).toBeCloseTo(expected)
+  },
+)
 
 /**
  * A rotation about Z turns an opening in the lid or the floor in its own plane.
@@ -29,7 +42,12 @@ test.each([
  */
 test("a horizontal face never leans", () => {
   for (const face of ["z_pos", "z_neg"] as const) {
-    expect(getApertureIncidenceDegrees({ face, rotation: -30 })).toBe(0)
+    expect(
+      getApertureIncidenceDegrees({
+        face,
+        apertureAxisDirection: directionAtDegrees(-30),
+      }),
+    ).toBe(0)
     expect(
       getObliqueTangentShift({
         face,
@@ -38,6 +56,11 @@ test("a horizontal face never leans", () => {
       }),
     ).toBe(0)
   }
+})
+
+/** Low-information adapters retain the historical square-to-wall behavior. */
+test("an absent continuous axis does not invent an incidence", () => {
+  expect(getApertureIncidenceDegrees({ face: "x_neg" })).toBe(0)
 })
 
 /**

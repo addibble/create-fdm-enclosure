@@ -77,12 +77,14 @@ export const resolveFdmEnclosureProblem = (
       const prefix = `apertures[${index}]`
       const { width, height } = getApertureDimensions(aperture)
 
-      // How far off square this part meets its wall. Face selection quantizes
-      // to the nearest of four walls, so anything that is not a multiple of 90
-      // degrees leaves the part leaning against the wall it exits through.
+      // How far off square this part meets its selected wall. The face is the
+      // nearest quantized Cartesian choice; the paired board-space direction
+      // retains the continuous physical axis, including the sign at the exact
+      // +/-45-degree tie. Never reconstruct this from component rotation: that
+      // loses the footprint's local direction and can disagree with the face.
       const incidenceDegrees = getApertureIncidenceDegrees({
         face,
-        rotation: aperture.rotation,
+        apertureAxisDirection: aperture.apertureAxisDirection,
       })
       // The opening keeps its authored size. It is the *tool* that leans, so
       // the wall receives the true oblique section of the part's own profile --
@@ -152,11 +154,10 @@ export const resolveFdmEnclosureProblem = (
         // in the board plane. So this is not a policy choice about which faces
         // may turn; a side wall genuinely has no roll to apply.
         //
-        // The part's rotation is still fully accounted for on a side wall --
-        // just at an earlier stage. Core rotates the footprint's insertion
-        // direction by it in `transformFootprintInsertionDirection`, which is
-        // what picks WHICH wall the aperture belongs in. Face selection there,
-        // in-face roll here.
+        // Side-wall orientation is accounted for by `incidenceDegrees`: core's
+        // continuous transformed aperture axis is measured against the normal
+        // of the quantized face it selected. Face selection and tool orientation
+        // therefore share one source transform without conflating them.
         rotation,
         incidenceDegrees,
         inwardProjection: getFdmApertureInwardProjection({

@@ -6,35 +6,54 @@ import {
 import type { EnclosureFace } from "../enclosure"
 
 /**
- * How far off square a part meets the wall its opening pierces.
+ * Signed angle from a selected wall's outward normal to the part's actual
+ * interaction axis, measured counter-clockwise in board XY.
  *
- * A wall is axis-aligned and a part is not: rotate a side-entry connector by 30
- * degrees and it still exits through the same wall -- face selection quantizes
- * to the nearest of four -- but it now meets that wall at 30 degrees rather than
- * head on. The residual after quantization is exactly that angle, so it can be
- * recovered from the part's own rotation without knowing which direction the
- * footprint declared:
+ * Both inputs are directions in the board's right-handed frame (+Z above the
+ * board), not points, and carry no translation or units. `face` is the nearest
+ * quantized Cartesian choice; `apertureAxisDirection` retains the continuous
+ * vector that led to that choice. Measuring one against the other is crucial:
+ * recovering a residual from the component's rotation alone loses the
+ * footprint's local axis and disagrees with face selection at exactly +/-45
+ * degrees, making the cutter lean 90 degrees toward the wrong wall.
  *
- *     -30 deg part  ->  -30 deg incidence (same wall, leaning)
- *     -60 deg part  ->  +30 deg incidence (next wall round, leaning the other way)
- *
- * Always within (-45, 45]: beyond that the next wall is nearer, and face
- * selection has already switched to it.
- *
- * Zero on the horizontal faces. A rotation about Z is a *roll* of an opening in
- * the lid or the floor -- it turns the shape in its own plane and changes
- * nothing about how the part approaches -- which is handled separately.
+ * Zero on horizontal faces. A rotation about board Z is a roll in the lid/floor
+ * plane, not an approach angle, and is handled separately as aperture rotation.
+ * An absent vector also means zero so low-information adapters retain the
+ * historical square-to-wall cut rather than guessing an axis.
  */
 export const getApertureIncidenceDegrees = ({
   face,
-  rotation = 0,
+  apertureAxisDirection,
 }: {
   face: EnclosureFace
-  rotation?: number
+  apertureAxisDirection?: { x: number; y: number; z: number }
 }): number => {
-  if (isHorizontalFace(face)) return 0
-  const wrapped = ((((rotation + 45) % 90) + 90) % 90) - 45
-  return wrapped
+  if (isHorizontalFace(face) || !apertureAxisDirection) return 0
+
+  const normalAxis = getFaceNormalAxis(face)
+  const normalSign = getFaceNormalSign(face)
+  const normal = {
+    x: normalAxis === "x" ? normalSign : 0,
+    y: normalAxis === "y" ? normalSign : 0,
+  }
+  const axisLength = Math.hypot(
+    apertureAxisDirection.x,
+    apertureAxisDirection.y,
+  )
+  if (!Number.isFinite(axisLength) || axisLength === 0) {
+    throw new Error(
+      `apertureAxisDirection must have a finite, non-zero XY projection for side face ${face}`,
+    )
+  }
+  const axis = {
+    x: apertureAxisDirection.x / axisLength,
+    y: apertureAxisDirection.y / axisLength,
+  }
+
+  const cross = normal.x * axis.y - normal.y * axis.x
+  const dot = normal.x * axis.x + normal.y * axis.y
+  return (Math.atan2(cross, dot) * 180) / Math.PI
 }
 
 /**
