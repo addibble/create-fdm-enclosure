@@ -9,6 +9,7 @@ import { assertApertureFitsEnclosure } from "./assert-aperture-fits-enclosure"
 import { DEFAULT_FDM_DESIGN_RULES, type FdmDesignRules } from "./design-rules"
 import { getDerivedApertureDepth } from "./get-derived-aperture-depth"
 import { getFdmApertureInwardProjection } from "./get-fdm-aperture-inward-projection"
+import { getApertureIncidenceDegrees } from "./resolve-oblique-aperture"
 import {
   resolveApertureCenter,
   resolveApertureCenterZ,
@@ -75,6 +76,18 @@ export const resolveFdmEnclosureProblem = (
       const { face } = aperture
       const prefix = `apertures[${index}]`
       const { width, height } = getApertureDimensions(aperture)
+
+      // How far off square this part meets its wall. Face selection quantizes
+      // to the nearest of four walls, so anything that is not a multiple of 90
+      // degrees leaves the part leaning against the wall it exits through.
+      const incidenceDegrees = getApertureIncidenceDegrees({
+        face,
+        rotation: aperture.rotation,
+      })
+      // The opening keeps its authored size. It is the *tool* that leans, so
+      // the wall receives the true oblique section of the part's own profile --
+      // an ellipse for a round barrel -- instead of an axis-aligned hole
+      // widened to approximate one.
       const widthDimensionOffset = aperture.widthDimensionOffset ?? 0
       const heightDimensionOffset = aperture.heightDimensionOffset ?? 0
       // A board rotation only rolls an opening whose face normal is Z; see the
@@ -87,6 +100,7 @@ export const resolveFdmEnclosureProblem = (
         widthDimensionOffset,
         heightDimensionOffset,
         rotation,
+        incidenceDegrees,
         // Only side faces read this; a horizontal face takes its position along
         // the normal from the plate it pierces.
         centerZ: resolveApertureCenterZ({
@@ -144,6 +158,7 @@ export const resolveFdmEnclosureProblem = (
         // what picks WHICH wall the aperture belongs in. Face selection there,
         // in-face roll here.
         rotation,
+        incidenceDegrees,
         inwardProjection: getFdmApertureInwardProjection({
           face,
           depth,

@@ -191,11 +191,31 @@ export const createApertureCutoutPlan = ({
   const origin: [number, number, number] = [center.x, center.y, center.z]
   origin[getAxisIndex(normalAxis)] += inwardShift
 
+  // A part that meets its wall at an angle is cut at that angle. Turning the
+  // tool about world Z, after it has been placed on the face, points its depth
+  // axis along the part's real mating axis: the hole the wall receives is then
+  // the true oblique section -- an ellipse for a cylinder -- rather than a
+  // widened axis-aligned approximation of one, and the relieved channel behind
+  // the wall follows the path the plug actually takes.
+  const placedShape = rotateForFace(face, orientedShape)
+  const tiltedShape =
+    placement.incidenceDegrees === undefined || placement.incidenceDegrees === 0
+      ? placedShape
+      : {
+          type: "rotate" as const,
+          angles: [0, 0, (placement.incidenceDegrees * Math.PI) / 180] as [
+            number,
+            number,
+            number,
+          ],
+          shape: placedShape,
+        }
+
   return {
     aperture,
     width,
     height,
     cutDepth,
-    jscadPlan: translate(origin, rotateForFace(face, orientedShape)),
+    jscadPlan: translate(origin, tiltedShape),
   }
 }

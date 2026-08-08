@@ -1,4 +1,5 @@
 import type { EnclosureAssemblyFrame } from "../assembly"
+import { getObliqueTangentShift } from "./resolve-oblique-aperture"
 import {
   type EnclosureFace,
   getEnclosureSpanAlongAxis,
@@ -50,6 +51,7 @@ export const resolveApertureCenter = ({
   widthDimensionOffset,
   heightDimensionOffset,
   rotation,
+  incidenceDegrees = 0,
   dimensions,
   frame,
 }: {
@@ -66,6 +68,11 @@ export const resolveApertureCenter = ({
   heightDimensionOffset: number
   /** In-face rotation of the opening, in degrees. Zero on the side faces. */
   rotation: number
+  /**
+   * How far off square the part meets a side wall, in degrees. Zero on the
+   * horizontal faces and for a part that meets its wall head on.
+   */
+  incidenceDegrees?: number
   dimensions: ResolvedFdmEnclosureDimensions
   frame: EnclosureAssemblyFrame
 }): { x: number; y: number; z: number } => {
@@ -103,10 +110,30 @@ export const resolveApertureCenter = ({
     (getEnclosureSpanAlongAxis(dimensions, normalAxis) / 2 -
       dimensions.wallThickness / 2)
 
+  // A part that meets the wall at an angle does not cross it above its own
+  // centre: its mating axis leans, and where that axis reaches the wall is where
+  // the hole belongs. Square-on this is zero, which is why it went unnoticed --
+  // every fixture placed parts square to their wall.
+  const obliqueShift = getObliqueTangentShift({
+    face,
+    incidenceDegrees,
+    distanceToWall:
+      (midWall - boardCenter[normalAxis === "x" ? "x" : "y"]) *
+      getFaceNormalSign(face),
+  })
+
   // On a side wall the width axis is the one tangent to the board plane, so the
   // width offset slides the opening ALONG the wall. The height offset is already
   // in `centerZ`.
   return normalAxis === "x"
-    ? { x: midWall, y: boardCenter.y + widthDimensionOffset, z: centerZ }
-    : { x: boardCenter.x + widthDimensionOffset, y: midWall, z: centerZ }
+    ? {
+        x: midWall,
+        y: boardCenter.y + widthDimensionOffset + obliqueShift,
+        z: centerZ,
+      }
+    : {
+        x: boardCenter.x + widthDimensionOffset + obliqueShift,
+        y: midWall,
+        z: centerZ,
+      }
 }

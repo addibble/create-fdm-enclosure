@@ -222,6 +222,14 @@ export interface ResolvedEnclosureAperturePlacement {
    * part. Resolved from the aperture's `depth`.
    */
   inwardProjection: number
+  /**
+   * How far off square the part meets this face, in degrees.
+   *
+   * The cutting tool is turned by it about board Z, so its depth axis follows
+   * the part's real mating axis and the wall receives the true oblique section.
+   * Zero on the horizontal faces and for any part square to its wall.
+   */
+  incidenceDegrees?: number
   /** Margin-inflated opening size across the face's first tangent axis. */
   width: number
   /** Margin-inflated opening size across the face's second tangent axis. */
