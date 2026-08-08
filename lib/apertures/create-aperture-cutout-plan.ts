@@ -149,26 +149,25 @@ export const createApertureCutoutPlan = ({
   const { aperture, face, center, width, height, inwardProjection } = placement
   const incidenceDegrees = placement.incidenceDegrees ?? 0
   const incidence = (incidenceDegrees * Math.PI) / 180
+  const cosine = Math.abs(Math.cos(incidence))
   const lean = Math.abs(Math.tan(incidence))
-  const obliqueTraversal = 1 / Math.cos(incidence)
 
-  // A leaning tool travels further to cross the same plate -- thickness/cos --
-  // and its end face, still square to the tool, no longer lies flat against the
-  // outer surface: the trailing corner is `(width / 2) * tan` short of it. Both
-  // are added OUTBOARD, so the part of the tool that matters stays put.
+  // Exact axial span of a width-W tool through a thickness-T plate:
   //
-  // `inwardProjection` is deliberately not scaled. It is measured along the
-  // part's own mating axis -- the axis the tool now follows -- so the depth from
-  // the component's front to its back is the authored one whatever the angle.
-  // Scaling it would deepen the relief behind the wall as a side effect of
-  // rotating the part, which is not what the depth means.
-  const outboardExtension =
-    faceThickness * (obliqueTraversal - 1) + (width / 2) * lean
-  // The tool over-extends past BOTH surfaces of the face so the boolean breaks
-  // through cleanly, and continues `inwardProjection` further inboard so nothing
-  // inside the enclosure (notably the lid lip) is left blocking the part.
+  //   (T + 2*tolerance) / cos(incidence) + W*tan(incidence)
+  //
+  // The first term is the longer path through the plate. The second clears both
+  // trailing corners: a square end face is W/2*tan short at each surface. The
+  // previous approximation added only one half-corner and did not scale the
+  // tolerance, leaving a wall sliver from about 25 degrees onward.
+  //
+  // `inwardProjection` is added unchanged. It is measured along the part's own
+  // mating axis -- now also the tool axis -- so front-to-back component depth
+  // stays authored rather than growing merely because the part was rotated.
   const cutDepth =
-    faceThickness + booleanTolerance * 2 + inwardProjection + outboardExtension
+    (faceThickness + booleanTolerance * 2) / cosine +
+    width * lean +
+    inwardProjection
 
   let localShape: JscadOperation
   switch (aperture.shape) {
@@ -205,14 +204,30 @@ export const createApertureCutoutPlan = ({
         }
 
   const normalAxis = getFaceNormalAxis(face)
-  // The inboard growth moves the midpoint inboard by half of it; the outboard
-  // growth moves it back out by half of that, so the tool grows only in the
-  // direction each term was added and the plate stays in the same place inside
-  // the tool.
-  const inwardShift =
-    (-getFaceNormalSign(face) * (inwardProjection - outboardExtension)) / 2
+  const normalSign = getFaceNormalSign(face)
   const origin: [number, number, number] = [center.x, center.y, center.z]
-  origin[getAxisIndex(normalAxis)] += inwardShift
+
+  // `center` is where the part's physical axis crosses the wall mid-plane. The
+  // plate/tolerance/corner span above is symmetric around that point; only the
+  // authored inward projection is asymmetric. Move the tool midpoint half that
+  // projection INWARD ALONG THE ROTATED TOOL AXIS.
+  //
+  // Moving it along the unrotated wall normal was the subtle drift: at 30
+  // degrees it displaced the whole cylinder sideways from the component axis by
+  // (inwardProjection/2)*sin(30), so the component appeared to rotate faster
+  // than its aperture. It also invalidated the endpoint-length calculation.
+  if (normalAxis === "z") {
+    origin[getAxisIndex(normalAxis)] -= (normalSign * inwardProjection) / 2
+  } else {
+    const normalX = normalAxis === "x" ? normalSign : 0
+    const normalY = normalAxis === "y" ? normalSign : 0
+    const cos = Math.cos(incidence)
+    const sin = Math.sin(incidence)
+    const apertureAxisX = normalX * cos - normalY * sin
+    const apertureAxisY = normalX * sin + normalY * cos
+    origin[0] -= (apertureAxisX * inwardProjection) / 2
+    origin[1] -= (apertureAxisY * inwardProjection) / 2
+  }
 
   // A part that meets its wall at an angle is cut at that angle. Turning the
   // tool about world Z, after it has been placed on the face, points its depth
