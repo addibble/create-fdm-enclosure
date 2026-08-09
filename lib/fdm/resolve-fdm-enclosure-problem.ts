@@ -128,10 +128,17 @@ export const resolveFdmEnclosureProblem = (
         frame,
       })
 
+      // A side tool meeting its wall obliquely has a wider intersection there:
+      // a finite profile projects to width/cos(incidence). Fit validation must
+      // inspect that realized opening, not the authored square-on width, while
+      // still allowing partial overlap that deliberately wraps a box corner.
+      const projectedWidth = isHorizontalFace(face)
+        ? width
+        : width / Math.abs(Math.cos((incidenceDegrees * Math.PI) / 180))
       assertApertureFitsEnclosure({
         face,
         center,
-        width,
+        width: projectedWidth,
         height,
         dimensions,
         prefix,

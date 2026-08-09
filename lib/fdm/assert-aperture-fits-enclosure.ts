@@ -41,11 +41,14 @@ const assertWithinOuterSpan = ({
   prefix: string
 }): void => {
   const limit = getEnclosureSpanAlongAxis(dimensions, axis) / 2
-  if (Math.abs(offset) + extent / 2 > limit) {
-    // Both spans are shown because either end can be the one that ran off, and
-    // an author reading only "too wide" would not know which way to move it.
+  // Partial overlap is intentional at a corner: the global subtraction then
+  // relieves the neighbouring wall too. Reject only when the complete projected
+  // profile lies beyond the enclosure's outer span and therefore cuts nothing.
+  if (Math.abs(offset) - extent / 2 > limit) {
+    // Both spans are shown because either end can be nearest the box, and an
+    // author reading only "outside" would not know which way to move it.
     throw new Error(
-      `${prefix} extends past the ${face} face along ${axis.toUpperCase()}: ` +
+      `${prefix} misses the ${face} face along ${axis.toUpperCase()}: ` +
         `the opening spans ${formatMm(offset - extent / 2)} to ${formatMm(
           offset + extent / 2,
         )} but the enclosure only spans ${formatMm(-limit)} to ${formatMm(

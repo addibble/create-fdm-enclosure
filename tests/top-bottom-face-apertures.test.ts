@@ -96,9 +96,9 @@ test("a horizontal aperture must stay on the enclosure", () => {
     })
 
   expect(() => beyond({ x: 30, y: 0 })).toThrow(
-    "extends past the z_pos face along X: the opening spans 27mm to 33mm but the enclosure only spans -23mm to 23mm",
+    "misses the z_pos face along X: the opening spans 27mm to 33mm but the enclosure only spans -23mm to 23mm",
   )
   expect(() => beyond({ x: 0, y: 30 })).toThrow(
-    "extends past the z_pos face along Y: the opening spans 27mm to 33mm but the enclosure only spans -15mm to 15mm",
+    "misses the z_pos face along Y: the opening spans 27mm to 33mm but the enclosure only spans -15mm to 15mm",
   )
 })
