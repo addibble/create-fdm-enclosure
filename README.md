@@ -44,47 +44,34 @@ mounted on, which is a Z-side concept, so it stays `"top"`/`"bottom"`.
 
 ### Naming: enclosure axes vs aperture axes
 
-The enclosure's own `width`/`height`/`depth` are plain board axes -- X, Y and Z.
-An aperture's are not, because an opening is measured in the frame of the face it
-pierces. Aperture dimensions therefore all carry an `aperture` prefix:
+The enclosure's own `width`/`height`/`depth` are board-aligned X/Y/Z spans. An
+aperture begins with the part instead: its footprint direction defines a
+continuous interaction axis through the component rotation datum.
 
-| Face | `width` | `height` | `depth` |
-| --- | --- | --- | --- |
-| `x_pos`, `x_neg` | Y | Z | X |
-| `y_pos`, `y_neg` | X | Z | Y |
-| `z_pos`, `z_neg` | X | Y | Z |
-
-So on any side face `height` is the vertical dimension and
-`width` runs along the wall, while `depth` points into the box.
-Width and height are the two face-tangent axes, in the order returned by
-`getFaceTangentAxes`; depth is the face normal. A circular aperture uses
-`radius` in place of width and height.
+Aperture dimensions describe a tool around that axis. On a side opening,
+`height` is board Z, `width` is perpendicular to the axis in the board plane,
+and `depth` follows the axis inboard. On a lid or floor opening, width and height
+rotate with the footprint and depth is vertical. A circle uses `radius` for its
+profile. The enclosure face is the first wall intersected by the transformed
+axis; it supplies the material plane, not the aperture's original orientation.
 
 ## Status
 
-Phase 2 of [`pcb-enclosure/MIGRATION.md`](https://github.com/tscircuit/pcb-enclosure)
-("create generic/FDM package boundaries") is implemented, geometry-only as that
-phase specifies: box, base/lid split, lid lip, board clearances, vertical stack,
-and declared cutout apertures. Mounting-stack selection, screw bosses, inserts,
-fasteners, and mechanical BOM behavior remain out of scope until later phases.
+The geometry pipeline is implemented: box, base/lid split, lid lip, board
+clearances, vertical stack, and declared cutout apertures. Mounting-stack
+selection, screw bosses, inserts, fasteners, and mechanical BOM behavior remain
+out of scope.
 
-The phase's completion criteria hold today:
+The package boundaries hold today:
 
 - `lib/enclosure/`, `lib/assembly/`, and `lib/fdm/` exist, and the dependency
   direction is one-way — neither `lib/assembly/` nor `lib/enclosure/` imports
   from `lib/fdm/`.
 - `resolveFdmEnclosureProblem()` is the single resolution pass; every pipeline
   stage reads only its output and none re-derives a default.
-- Package tests: 38 across 16 files. Cross-package/end-to-end coverage lives in
-  `core/tests/enclosure/` (16 tests), including a PoppyGL render that checks
-  cutouts line up with connectors on all six faces.
-
-One deviation from the phase text remains open:
-
-- `lib/enclosure/` is no longer only `types.ts` — it now also owns `faces.ts`
-  and `component-body.ts` — but the generic half of resolution
-  (`resolve-mechanical-input.ts`, `resolve-cutouts.ts`) still arrives with
-  Phases 3 and 6.
+- Package tests cover pure resolution and generated geometry. Cross-package and
+  end-to-end coverage lives in `core/tests/enclosure/`, including rendered
+  alignment checks on all six faces.
 
 One boundary violation was found and corrected during review:
 
@@ -136,20 +123,16 @@ sibling checkouts, linked with yalc (see `~/src/tscircuit/tsc-dev`):
 | [`addibble/circuit-json:feat/parametric-enclosures`](https://github.com/addibble/circuit-json/tree/feat/parametric-enclosures) | Typed enclosure Circuit JSON records: `source_fdm_enclosure`, `source_cutout_aperture` (with `width_dimension_offset`/`height_dimension_offset` and `depth`), `cad_fdm_enclosure`, and `source_assembly_device`. |
 | [`addibble/props:feat/parametric-enclosures`](https://github.com/addibble/props/tree/feat/parametric-enclosures) | `enclosure.fdm.box`, `enclosure.cutoutaperture` (with `widthDimensionOffset`/`heightDimensionOffset` and `depth`), and `assembly.device` authoring props. |
 | [`addibble/core:feat/parametric-enclosures`](https://github.com/addibble/core/tree/feat/parametric-enclosures) | `assembly.device` / `enclosure.fdm.box` / `enclosure.cutoutaperture` host elements, typed source-record emission, cutout wall/offset/tangent-Z resolution, isolated-subcircuit aperture inflation, and the end-to-end prefab-board fixtures (`core/tests/enclosure/`). |
-| [`addibble/circuit-json-to-gltf:feat/parametric-enclosures`](https://github.com/addibble/circuit-json-to-gltf/tree/feat/parametric-enclosures) | Correct JSCAD-plan glTF orientation — the loader no longer double-negates X (see the coordinate-frame RFC); enclosure cutouts align with connectors on every wall. |
+| [`addibble/circuit-json-to-gltf:feat/parametric-enclosures`](https://github.com/addibble/circuit-json-to-gltf/tree/feat/parametric-enclosures) | Typed `cad_fdm_enclosure` rendering. The shared JSCAD-plan coordinate fix is already on upstream main. |
 | [`addibble/infer-cable-insertion-point:fix/explicit-insertion-direction`](https://github.com/addibble/infer-cable-insertion-point/tree/fix/explicit-insertion-direction) | **Merged and published as 0.0.3** — no longer a fork requirement. Explicit connector mating direction takes precedence over silkscreen/geometry guessing. |
 | [`addibble/3d-viewer:feat/parametric-enclosures`](https://github.com/addibble/3d-viewer/tree/feat/parametric-enclosures) | `cad_fdm_enclosure` render path for the direct viewer (`CadViewerJscad`, `CadViewerManifold`, and the headless SVG converter). |
 
 Enclosure parts ship **only** as typed `cad_fdm_enclosure` records — no
 synthetic `source_component`/`pcb_component`/`cad_component` triple. Any renderer
 that should draw an enclosure therefore needs an explicit `cad_fdm_enclosure`
-code path; both `circuit-json-to-gltf` and `3d-viewer` have one. The standalone
-`<model-viewer>`
-preview and PoppyGL snapshots render the enclosure through
-`circuit-json-to-gltf`; see
-[`rfc/rfcs/2026-07-22-coordinate-frame-consolidation.md`](https://github.com/addibble/rfc/tree/feat/parametric-enclosures)
-for the coordinate-frame analysis, the single-canonical-X-mirror rule, and the
-front-facing (vertical-axis) preview convention.
+code path; both `circuit-json-to-gltf` and `3d-viewer` have one. The standalone `<model-viewer>` preview and PoppyGL snapshots render the
+enclosure through `circuit-json-to-gltf`. Its AGENTS.md and this repository's
+AGENTS.md document the canonical frame conversion and transform rules.
 
 ### How an aperture finds its wall
 
@@ -278,7 +261,7 @@ types exist.
 
 | # | Package | Carries |
 | --- | --- | --- |
-| 1 | `circuit-json` | `source_assembly_device`, `source_fdm_enclosure`, `source_cutout_aperture`, `cad_fdm_enclosure`, and `cad_component.model_bounds`. Tracked in [#649](https://github.com/tscircuit/circuit-json/pull/649), still a **draft**; four deltas must be upstreamed or the branch forks the maintainer's schema: `source_cutout_aperture.width_dimension_offset`/`height_dimension_offset`, `auto_cutouts` renamed to `disable_cutouts`, and `cad_fdm_enclosure.show_as_translucent_model`. |
+| 1 | `circuit-json` | `source_assembly_device`, `source_fdm_enclosure`, `source_cutout_aperture`, `cad_fdm_enclosure`, and `cad_component.model_bounds`. Tracked in [#649](https://github.com/tscircuit/circuit-json/pull/649); the current contract includes dimension offsets, `disable_cutouts`, one `cad_fdm_enclosure` per `enclosure_part`, and no durable display/translucency hint. |
 | 2 | `props` | `enclosure.fdm.box`, `enclosure.cutoutaperture`, `assembly.device`, and `cadModel.modelBounds`. The `aperture*` rename keeps deprecated `width`/`height`/`radius` aliases, so this wave is **not** a breaking release. |
 
 **Wave 2 -- renderers.** These consume wave 1 and are what makes an enclosure
@@ -294,7 +277,7 @@ visible at all.
 
 | # | Package | Carries | Depends on |
 | --- | --- | --- | --- |
-| 5 | `create-fdm-enclosure` | The solver. Its *API* needs neither wave -- it takes plain millimetre numbers -- but its **preview tests render through `circuit-json-to-gltf`**, so they cannot pass on a clean checkout until wave 2 ships. Bump the `circuit-json-to-gltf` devDependency then; it currently pins `^0.0.107`, which predates the render path. | 3 |
+| 5 | `create-fdm-enclosure` | The solver. Its *API* needs neither wave -- it takes plain millimetre numbers -- but its preview tests render through `circuit-json-to-gltf`. The currently pinned `^0.0.113` predates the branch's enclosure render path; bump it only after wave 2 publishes. | 3 |
 | 6 | `core` | Host elements, typed source emission, solver orchestration, Circuit JSON lowering. Bump `circuit-json`, `props`, `create-fdm-enclosure` and `circuit-json-to-gltf` to the versions the earlier waves published, and drop the local `overrides` entries. A clean checkout cannot compile against the currently pinned versions, which predate every new API. | 1, 2, 3, 5 |
 | 7 | `eval`, `runframe`, `cli` | Nothing of their own. Core is inlined into eval's web worker, which is inlined into runframe's standalone bundle, so they must be rebuilt bottom-up even when unchanged. | 6 |
 
@@ -458,18 +441,18 @@ whole box occupies positive Z. The board is *not* at Z = 0 here -- it sits at
 board's *centre plane* is Z = 0, so its bottom surface is at
 `-boardThickness / 2`. Core translates the enclosure to
 `z = -boardThickness / 2 - floorThickness - standoffHeight`
-(`EnclosureFdmBox_doInitialCadModelRender.ts`), which is exactly the offset that
+(`EnclosureFdmBox_doInitialEnclosureRender.ts`), which is exactly the offset that
 lines the two frames up.
 
 Aperture inputs are in **board coordinates relative to the board centre**, not in
 either frame's Z. Faces are named `x_pos` (+X), `x_neg` (-X), `y_pos` (+Y),
 `y_neg` (-Y), `z_pos` (the lid's outward face) and `z_neg` (the floor's).
 
-An aperture supplies `face` plus `center`, an interaction point in board
-coordinates relative to the board centre. The enclosure layer projects that point
-onto the face: the two coordinates tangent to the face position the opening, and
-the coordinate along the face normal is discarded. Callers therefore never decide
-which axis matters.
+A directed side aperture supplies a continuous board-space axis through
+`center`, the component's rotation datum in board coordinates relative to the
+board centre. The enclosure layer intersects that ray with the first cavity wall
+it reaches. Without an authored direction, the nearest-edge fallback supplies a
+face and the point is projected square to it.
 
 `widthDimensionOffset` and `heightDimensionOffset` move the opening's **center**
 across the face it pierces, along the same two axes its `width` and `height` are
@@ -500,15 +483,17 @@ and past the board -- needed when a cable jacket is fatter than the connector it
 plugs into. The binding constraint is that the opening must not cut into the
 enclosure floor.
 
-A `z_pos` or `z_neg` aperture takes its extent along the normal from the plate it
-pierces, so a lid cutout is bounded by `lidThickness` and a floor cutout by
-`floorThickness`. Cutouts are routed per face: `z_pos` to the lid, `z_neg` to the
-base, side faces to both so an opening straddling the seam is split.
+Every aperture tool is subtracted from both printed parts. The tool's position
+and depth decide which material it actually intersects: a lid-only tool misses
+the base, a floor-only tool misses the lid, and a side opening crossing the seam
+naturally splits across both.
 
-`depth` is the opening's size along the face normal -- how deep the part
-is, in the direction it pokes through. The cut is projected that far inboard, so
-nothing behind the face -- the lid lip today, mounting bosses later -- is left
-obstructing a part that reaches past the wall.
+`depth` is the opening's size along its component-relative interaction axis --
+how deep the part is in the direction it occupies. The cut is projected that far
+inboard, so nothing behind the wall -- the lid lip today, mounting bosses later
+-- obstructs a part that reaches past it. For a horizontal face the primitive
+already spans the plate; a derived inward projection begins at the plate's inner
+surface rather than counting its thickness twice.
 
 Because it is the face-normal dimension, what it cuts is whatever material lies
 along that normal, which is generally *not* the face it entered. A large `z_pos`

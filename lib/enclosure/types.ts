@@ -112,7 +112,7 @@ interface CommonEnclosureApertureInput {
    * `heightDimensionOffset`, and for a vertical interaction it is also the face the
    * aperture exits through.
    *
-   * Defaults to `"z_pos"`.
+   * Defaults to `"top"`.
    */
   boardSide?: "top" | "bottom"
   /**
