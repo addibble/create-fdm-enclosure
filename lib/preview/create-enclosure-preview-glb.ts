@@ -3,7 +3,12 @@
 // `circuit-json-to-gltf` stay a devDependency instead of leaking a renderer
 // into the solver package's runtime dependencies.
 import { convertCircuitJsonToGltf } from "circuit-json-to-gltf"
-import { type CreateFdmEnclosureInput, createFdmEnclosure } from "../index"
+import type { JscadOperation } from "jscad-planner"
+import {
+  type CreateFdmEnclosureInput,
+  createFdmEnclosure,
+  type FdmEnclosurePart,
+} from "../index"
 
 export interface EnclosurePreviewGlb {
   data: ArrayBuffer
@@ -17,7 +22,8 @@ export interface EnclosurePreviewGlb {
  * `circuit-json-to-gltf` converts it. Using this everywhere keeps the Cosmos
  * debugger's <model-viewer> and the standalone solver snapshots in the exact
  * same coordinate frame as the runtime 3D viewer, instead of the 180deg-rotated
- * `jscad-to-gltf` frame (see rfc/rfcs/2026-07-22-coordinate-frame-consolidation.md).
+ * `jscad-to-gltf` frame. The canonical mapping is documented in this package's
+ * README and in the renderer AGENTS.md files.
  *
  * The conversion is circuit (x, y, z) -> glTF (-x, z, y). Despite the negated
  * X it is a proper rotation, not a mirror: its determinant is +1 (a 180deg turn
@@ -28,10 +34,10 @@ export interface EnclosurePreviewGlb {
  * top-down 2D visualization disagree about which side of the frame a given
  * wall shows up on; both are correct, they are just different viewpoints.
  */
-export const renderEnclosureJscadGlb = async (
-  jscadPlan: unknown,
+const renderEnclosurePartsGlb = async (
+  parts: Array<Pick<FdmEnclosurePart, "id" | "jscadPlan">>,
 ): Promise<ArrayBuffer> => {
-  const circuitJson = [
+  const circuitJson: Parameters<typeof convertCircuitJsonToGltf>[0] = [
     {
       type: "source_assembly_device",
       source_assembly_device_id: "assembly_preview",
@@ -40,6 +46,7 @@ export const renderEnclosureJscadGlb = async (
     {
       type: "source_board",
       source_board_id: "board_preview",
+      source_group_id: "group_preview",
     },
     {
       type: "source_fdm_enclosure",
@@ -48,31 +55,36 @@ export const renderEnclosureJscadGlb = async (
       source_board_id: "board_preview",
       wall_thickness: 2,
     },
-    {
-      type: "cad_fdm_enclosure",
-      cad_fdm_enclosure_id: "cad_enclosure_preview",
-      source_fdm_enclosure_id: "enclosure_preview",
-      name: "ENCLOSURE",
-      position: { x: 0, y: 0, z: 0 },
-      // No rotation: convertCircuitJsonToGltf maps circuit (x, y, z) to glTF
-      // (-x, z, y), so the front face (circuit +Y) already lands at glTF +Z,
-      // which is where <model-viewer> puts its default camera. This used to
-      // rotate 180deg because front was circuit -Y; once front moved to +Y that
-      // rotation started presenting the back. Presentation only - it does not
-      // affect the production board+connectors render, where the enclosure and
-      // connectors share one frame.
-      rotation: { x: 0, y: 0, z: 0 },
-      model_jscad: jscadPlan,
-      model_unit_to_mm_scale_factor: 1,
-    },
+    ...parts.map(
+      (part) =>
+        ({
+          type: "cad_fdm_enclosure",
+          cad_fdm_enclosure_id: `cad_enclosure_preview_${part.id}`,
+          source_fdm_enclosure_id: "enclosure_preview",
+          name: `ENCLOSURE_${part.id.toUpperCase()}`,
+          enclosure_part: part.id,
+          position: { x: 0, y: 0, z: 0 },
+          // No rotation: convertCircuitJsonToGltf maps circuit (x, y, z) to glTF
+          // (-x, z, y), so the +Y face already lands at glTF +Z. Presentation
+          // only -- production board, components and enclosure share one frame.
+          rotation: { x: 0, y: 0, z: 0 },
+          model_jscad: part.jscadPlan,
+          model_unit_to_mm_scale_factor: 1,
+        }) as const,
+    ),
   ]
 
-  return (await convertCircuitJsonToGltf(circuitJson as any, {
+  return (await convertCircuitJsonToGltf(circuitJson, {
     format: "glb",
     includeModels: true,
     boardTextureResolution: 0,
   })) as ArrayBuffer
 }
+
+/** Render one arbitrary plan for geometry-focused snapshots and tests. */
+export const renderEnclosureJscadGlb = async (
+  jscadPlan: JscadOperation,
+): Promise<ArrayBuffer> => renderEnclosurePartsGlb([{ id: "base", jscadPlan }])
 
 /**
  * Build the GLB shown by the FDM enclosure Cosmos debugger's <model-viewer>,
@@ -84,6 +96,9 @@ export const createEnclosurePreviewGlb = async (
   input: CreateFdmEnclosureInput,
 ): Promise<EnclosurePreviewGlb> => {
   const output = createFdmEnclosure(input)
-  const data = await renderEnclosureJscadGlb(output.jscadPlan)
+  // Preview the same typed part records production emits. Keeping base and lid
+  // separate catches schema drift (`enclosure_part` is required) and avoids
+  // demonstrating the fused representation that the runtime retired.
+  const data = await renderEnclosurePartsGlb(output.parts)
   return { data, mimeType: "model/gltf-binary", byteLength: data.byteLength }
 }
