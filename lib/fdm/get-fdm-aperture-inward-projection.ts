@@ -55,14 +55,14 @@ export const getFdmApertureInwardProjection = ({
 }): number => {
   if (isHorizontalFace(face)) {
     if (face === "z_neg") {
-      // Measured up from the floor's outer surface. The floor plate is the only
-      // thing between the outside and the cavity, so there is no shell feature
+      // Projected up beyond the floor's inner surface. The cutting primitive
+      // spans the floor plate separately, and there is no further shell feature
       // to clear beyond the depth itself.
       return depth
     }
 
-    // Measured down from the lid's outer surface. The lip hangs below the lid
-    // plate, so an opening in the lid must reach past it to be a through hole
+    // Projected down beyond the lid's inner surface. The lip hangs below the
+    // lid plate, so an opening in the lid must reach past it to be a through hole
     // at all -- cleared whether or not a depth was given.
     return Math.max(depth, dimensions.lidLipDepth)
   }

@@ -17,9 +17,10 @@ const frame = resolveFdmEnclosureFrame({
 const tallButton = { aboveBoardHeight: 15, size: { x: 9.5, y: 6.05, z: 15 } }
 
 /**
- * A depth on a horizontal face is measured from the plate's outer surface,
- * while `aboveBoardHeight` is measured from the board -- a whole cavity away.
- * Taking the reach raw put the end of the cut below the outside of the floor.
+ * The cutting primitive already spans the plate. Its inward projection starts
+ * at the plate's inner surface, while `aboveBoardHeight` is measured from the
+ * board -- a cavity away. Taking either the reach raw or measuring from the
+ * outer surface puts the end of the cut too deep.
  */
 test("a lid aperture is derived in the lid's own datum, not the board's", () => {
   const depth = getDerivedApertureDepth({
@@ -29,12 +30,12 @@ test("a lid aperture is derived in the lid's own datum, not the board's", () => 
     frame,
   })
 
-  expect(depth).toBeCloseTo(frame.totalHeight - frame.boardTopZ)
+  expect(depth).toBeCloseTo(frame.seamZ - frame.boardTopZ)
   // Which is emphatically not the part's reach above the board.
   expect(depth).toBeLessThan(15)
 })
 
-test("a floor aperture is derived from the floor's outer surface", () => {
+test("a floor aperture is derived from the floor's inner surface", () => {
   expect(
     getDerivedApertureDepth({
       face: "z_neg",
@@ -42,7 +43,7 @@ test("a floor aperture is derived from the floor's outer surface", () => {
       componentBody: tallButton,
       frame,
     }),
-  ).toBeCloseTo(frame.boardBottomZ)
+  ).toBeCloseTo(frame.boardBottomZ - frame.floorTopZ)
 })
 
 /**
@@ -69,10 +70,14 @@ test.each([1, 15, 400])(
       frame,
     })!
 
-    // Through the plate, whatever the part does.
-    expect(depth).toBeGreaterThanOrEqual(dimensions.lidThickness)
-    // And no further than the plane the part stands on.
-    expect(frame.totalHeight - depth).toBeCloseTo(frame.boardTopZ)
+    // The complete tool still reaches from the outer surface to the board;
+    // plate thickness and inward projection supply distinct parts of that span.
+    expect(depth + dimensions.lidThickness).toBeCloseTo(
+      frame.totalHeight - frame.boardTopZ,
+    )
+    // And no further than the plane the part stands on: plate thickness is
+    // already supplied by the cutting primitive itself.
+    expect(frame.seamZ - depth).toBeCloseTo(frame.boardTopZ)
   },
 )
 

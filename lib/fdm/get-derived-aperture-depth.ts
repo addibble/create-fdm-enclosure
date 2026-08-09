@@ -14,8 +14,8 @@ import {
  * reaches along the face normal, measured from the board it is mounted on -- and
  * the two datums only coincide on a side face, where the wall and the part both
  * start at roughly the board plane. On a horizontal face they do not coincide at
- * all: a depth is measured from the plate's OUTER surface, while the part's
- * reach is measured from the board surface, which sits a whole cavity away.
+ * all: an inward projection begins at the plate's INNER surface, while the
+ * part's reach is measured from the board surface, which sits a cavity away.
  *
  * Using the reach raw is what cut the floor. A 15mm pushbutton on a 19.35mm box
  * produced a 15mm cut measured down from the lid's outer face, ending at
@@ -35,12 +35,11 @@ import {
  * taller than the box does not reach the plate at the other end: below the
  * mounting plane the part cannot be, so no material there can foul it.
  *
- * Only the part of that span inside the shell can remove anything, and the
- * shell stops at `plateOuterZ`, so the depth the face needs is always
- * `|plateOuterZ - mountZ|` -- the `max` never adds depth, it only guarantees the
- * cut reaches the outside. Which is exactly why the raw reach was wrong: taken
- * as a depth it measured the part's overhang *downwards from the lid*, when the
- * overhang is above the lid entirely.
+ * The cutting primitive already spans the complete plate thickness. Its
+ * `inwardProjection` is appended beyond the inner surface, so the derived value
+ * is only the cavity span from that inner surface to `mountZ`. Including the
+ * plate a second time overreaches by one plate thickness and can cut the far
+ * shell when a board sits close to it.
  *
  * This is not the depth capping that was removed. That truncated what an author
  * had explicitly asked for, silently cutting a shallower hole than requested;
@@ -67,10 +66,10 @@ export const getDerivedApertureDepth = ({
   // plane, and never crosses to the other side of it.
   const mountZ = boardSide === "bottom" ? frame.boardBottomZ : frame.boardTopZ
 
-  // The outer face of the plate being pierced -- z_pos is measured down from
-  // the lid's outer surface, z_neg up from the floor's outer surface at z = 0.
-  // `max(partTop, plateOuter)` collapses to the plate for any part, since
-  // nothing above the plate is material to cut.
-  const plateOuterZ = face === "z_pos" ? frame.totalHeight : 0
-  return Math.abs(plateOuterZ - mountZ)
+  // The primitive's symmetric face-thickness span already reaches from the
+  // outer surface to this inner plane. Only the cavity distance beyond it is an
+  // inward projection. For an FDM box the lid's inner face is the seam and the
+  // floor's inner face is floorTopZ.
+  const plateInnerZ = face === "z_pos" ? frame.seamZ : frame.floorTopZ
+  return Math.max(0, Math.abs(plateInnerZ - mountZ))
 }
