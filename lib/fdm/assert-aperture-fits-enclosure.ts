@@ -41,19 +41,29 @@ const assertWithinOuterSpan = ({
   prefix: string
 }): void => {
   const limit = getEnclosureSpanAlongAxis(dimensions, axis) / 2
-  // Partial overlap is intentional at a corner: the global subtraction then
-  // relieves the neighbouring wall too. Reject only when the complete projected
-  // profile lies beyond the enclosure's outer span and therefore cuts nothing.
-  if (Math.abs(offset) - extent / 2 > limit) {
-    // Both spans are shown because either end can be nearest the box, and an
-    // author reading only "outside" would not know which way to move it.
+  const halfExtent = extent / 2
+  const openingMin = offset - halfExtent
+  const openingMax = offset + halfExtent
+  const spanDescription =
+    `the opening spans ${formatMm(openingMin)} to ${formatMm(openingMax)} ` +
+    `but the enclosure only spans ${formatMm(-limit)} to ${formatMm(limit)}`
+
+  // Partial overlap is intentional at a corner: global subtraction then
+  // relieves the neighbouring wall too. Reject when the complete projected
+  // profile lies beyond the enclosure and therefore cuts nothing.
+  if (Math.abs(offset) - halfExtent > limit) {
     throw new Error(
-      `${prefix} misses the ${face} face along ${axis.toUpperCase()}: ` +
-        `the opening spans ${formatMm(offset - extent / 2)} to ${formatMm(
-          offset + extent / 2,
-        )} but the enclosure only spans ${formatMm(-limit)} to ${formatMm(
-          limit,
-        )}`,
+      `${prefix} misses the ${face} face along ${axis.toUpperCase()}: ${spanDescription}`,
+    )
+  }
+
+  // The opposite extreme is invalid too. A profile wider than the entire box
+  // can consume every bit of a lid or split a shell into disconnected pieces;
+  // accepting it as merely "overlapping" returns an empty printed part without
+  // any diagnostic. Exact edge-to-edge fit remains allowed.
+  if (halfExtent - Math.abs(offset) > limit) {
+    throw new Error(
+      `${prefix} engulfs the ${face} face along ${axis.toUpperCase()}: ${spanDescription}`,
     )
   }
 }
