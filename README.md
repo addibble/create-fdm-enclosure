@@ -272,11 +272,17 @@ particular board placement will reach. Position and rotation determine the face.
 The low-level solver accepts an initial `face` because adapters without a
 continuous axis still need a square-to-wall fallback.
 
-### Why did an aperture move to another wall after I moved the part?
+### When is aperture direction auto-detected?
 
-The solver intersects the component axis with the first cavity wall. Near a
-corner, changing position can change which wall is reached first even when the
-part's rotation is unchanged.
+Normally it is not. A footprint's `cutoutApertureDirection` or
+`insertionDirection` defines the aperture axis in the part-local frame, and that
+axis moves and rotates with the part.
+
+Only when both properties are absent does core guess from the nearest board
+edge. Moving the part can then change the detected direction and wall. With an
+authored direction, the direction itself is never re-guessed; near a box corner
+the resolved wall can still change if the same physical axis reaches a different
+wall first.
 
 ### Is enclosure translucency a prop or Circuit JSON field?
 
