@@ -1,4 +1,10 @@
 import type { JscadOperation } from "jscad-planner"
+import type {
+  FastenerThread,
+  FasteningMethod,
+  HeadRecess,
+  ScrewHead,
+} from "../hardware/types"
 import type { EnclosureComponentBody } from "./component-body"
 
 /**
@@ -200,8 +206,38 @@ export type EnclosureApertureInput =
   | PillEnclosureApertureInput
   | CircleEnclosureApertureInput
 
+/**
+ * A part on the board that the enclosure has to make room for.
+ *
+ * Position is here rather than on `EnclosureComponentBody` because a body
+ * describes the *part* -- how big it is, how far it reaches above the board --
+ * while the same body can appear at many places on many boards. An aperture
+ * gets its position from the opening it cuts; an obstacle needs its own.
+ */
+export interface EnclosureBoardComponent {
+  /** Stable identity, used to name the part in a design rule violation. */
+  id: string
+  /** Centre of the part in board-frame XY, the same frame `mounts` use. */
+  center: { x: number; y: number }
+  /**
+   * Which face of the board it is mounted on. Decides which enclosure features
+   * can reach it at all: a floor boss stands under the board, a lid column
+   * above it, and neither can touch a part on the far side.
+   *
+   * Defaults to `"top"`.
+   */
+  boardSide?: "top" | "bottom"
+  body: EnclosureComponentBody
+}
+
 export interface EnclosureMechanicalInput {
   board: EnclosureBoardInput
+  /**
+   * Parts on the board that enclosure features must clear. Optional: an
+   * enclosure can be solved without knowing what is on the board, it just
+   * cannot be checked against it.
+   */
+  components?: EnclosureBoardComponent[]
   /** Outside X dimension. Inferred when omitted. */
   width?: number
   /** Outside Y dimension. Inferred when omitted. */
@@ -215,6 +251,7 @@ export interface EnclosureMechanicalInput {
   /** Horizontal clearance between each board edge and the inside wall. */
   boardClearance?: number
   apertures?: EnclosureApertureInput[]
+  mounts?: EnclosureMountInput[]
 }
 
 export interface ResolvedEnclosureDimensions {
@@ -272,6 +309,8 @@ export interface ResolvedEnclosureAperturePlacement {
  */
 export interface ResolvedEnclosureInput {
   board: EnclosureBoardInput
+  /** Carried through unchanged: obstacles are checked against, not resolved. */
+  components?: EnclosureBoardComponent[]
   apertures: ResolvedEnclosureAperturePlacement[]
 }
 
@@ -281,4 +320,101 @@ export interface ResolvedEnclosureAperture {
   height: number
   cutDepth: number
   jscadPlan: JscadOperation
+}
+
+/**
+ * The four in-plane quadrants of the enclosure, named by the signs of the axes
+ * whose corner they occupy.
+ *
+ * Cartesian rather than named (`front_left`) for the reason `EnclosureFace` is:
+ * `top` already means +Y as a direction and +Z as a PCB layer, and the enclosure
+ * would be the third meaning.
+ */
+/**
+ * A reference to any Circuit JSON element: its `type`, and the value of that
+ * element's own `<type>_id` field.
+ *
+ * Generic on purpose. The enclosure happens to generate bosses from `pcb_hole`s,
+ * but the same field has to carry the pin header behind a jumper wire or the
+ * component behind anything else, so naming a specific element kind here would
+ * freeze this package's current use case into the contract. Resolved downstream
+ * with `getElementId` / `getElementById`, which `@tscircuit/circuit-json-util`
+ * already provides.
+ *
+ * Deliberately not typed as circuit-json's element-type union: this package does
+ * not depend on circuit-json, and does not need to in order to carry a pair of
+ * strings from its caller back out again.
+ */
+export interface CircuitJsonElementRef {
+  elementType: string
+  elementId: string
+}
+
+/**
+ * One authored screw boss.
+ *
+ * Process-independent: which fastener, where it stands, and what it fastens.
+ * How the boss is bored, how much melt relief it gets and how much floor must
+ * remain beneath it are FDM answers, and live in `lib/fdm/`.
+ */
+export interface EnclosureMountInput {
+  /** Stable identity. Names the generated parts and their BOM occurrences. */
+  id: string
+  /**
+   * What the screw ultimately holds down.
+   *
+   * Both kinds stand on the same floor boss under the same PCB hole -- the
+   * difference is how far the screw reaches:
+   *
+   * - `board`: a short screw drops through the PCB hole into the boss and
+   *   clamps the board to the base.
+   * - `lid`: a long screw enters through the lid, crosses the headroom, passes
+   *   through the same PCB hole and threads into the same boss, so it holds the
+   *   lid down and the board is captured on the way past.
+   *
+   * A lid screw therefore costs no extra floor area: it reuses a hole the board
+   * already has, in space the board has already cleared.
+   */
+  fastens: "board" | "lid"
+  /**
+   * What fills the gap between the board and the lid, on a `lid` mount.
+   *
+   * - `printed`: a hollow column moulded into the **lid**, landing on the board.
+   *   It cannot be part of the base: a column standing up from the floor through
+   *   the board's own hole would leave nowhere for the board to be lowered in.
+   * - `spacer`: a bought nylon tube. Where its length matches a stocked piece it
+   *   is one, and otherwise it is cut to length from stock during assembly --
+   *   which is what lets the enclosure keep whatever headroom it needs instead
+   *   of rounding its geometry to a vendor's inventory.
+   * - `none`: nothing. The screw crosses open air, the lid seats on the walls as
+   *   it always did, and the board is held by whatever `board` mounts it has.
+   */
+  lidColumn?: "printed" | "spacer" | "none"
+  /** Board-relative position, in board XY -- as apertures are. */
+  anchor: { x: number; y: number }
+  thread: FastenerThread
+  fastening: FasteningMethod
+  head: ScrewHead
+  /** Derived from `head` when omitted, and forced to `none` on a PCB mount. */
+  headRecess?: HeadRecess
+  /** Pins the screw length. Normally derived from the stack and rounded. */
+  length?: number
+  /** Overrides the boss outside diameter, otherwise derived from the bore. */
+  bossDiameter?: number
+  /**
+   * Drill diameter of the PCB hole this mount was declared in.
+   *
+   * A constraint to check, never a value to size the boss from: a hole too small
+   * for the screw shank is a design error naming both numbers.
+   */
+  pcbHoleDiameter?: number
+  /**
+   * The element whose existence requires this mount -- the mounting hole a boss
+   * was declared in. Carried through to every piece of hardware the mount
+   * consumes, so a BOM line can point back at the feature that caused it without
+   * anyone re-deriving the association later.
+   */
+  generatedBy?: CircuitJsonElementRef
+  manufacturerPartNumber?: string
+  supplierPartNumbers?: Record<string, string[]>
 }

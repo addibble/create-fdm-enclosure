@@ -19,6 +19,7 @@ import {
 } from "./resolve-fdm-aperture-center"
 import { resolveFdmEnclosureDimensions } from "./resolve-fdm-enclosure-dimensions"
 import { resolveFdmEnclosureFrame } from "./resolve-fdm-enclosure-frame"
+import { resolveFdmMount } from "./resolve-fdm-mount"
 import type {
   CreateFdmEnclosureInput,
   ResolvedFdmEnclosureInput,
@@ -57,7 +58,6 @@ export const resolveFdmEnclosureProblem = (
 
   const dimensions = resolveFdmEnclosureDimensions({ input, rules })
   const frame = resolveFdmEnclosureFrame({ board: input.board, dimensions })
-
   // The lip can only be as deep as the base cavity it seats into, and the shell
   // used to discover that for itself while the aperture projection went on using
   // the authored value. The two then disagreed: a lip requested deeper than the
@@ -192,7 +192,21 @@ export const resolveFdmEnclosureProblem = (
   return {
     construction: "fdm_box",
     board: input.board,
+    components: input.components,
     apertures: resolvedApertures,
+    // Mounts are resolved last because a boss is placed against the frame, and
+    // for a corner column, against dimensions this package may have grown to fit
+    // it. Sizing reads only the boss diameter, which is fixed by the thread --
+    // see `getMountBoreDiameterMm` for why that is sound.
+    mounts: (input.mounts ?? []).map((mount) =>
+      resolveFdmMount({
+        mount,
+        dimensions,
+        frame,
+        boardThicknessMm: input.board.thickness,
+        rules,
+      }),
+    ),
     dimensions,
     rules,
     frame,

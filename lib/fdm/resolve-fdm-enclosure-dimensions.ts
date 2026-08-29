@@ -1,5 +1,6 @@
 import { assertNonNegative, assertPositive } from "../validation/assert-number"
 import { getApertureClearanceDepth } from "./get-aperture-clearance-depth"
+import { getLidMountMinimumThicknessMm } from "./get-lid-mount-minimum-thickness"
 import { formatMm } from "format-si-unit"
 import type { EnclosureBoardInput } from "../enclosure"
 import type { FdmDesignRules } from "./design-rules"
@@ -123,7 +124,24 @@ export const resolveFdmEnclosureDimensions = ({
   // so overriding `wallThickness` alone still yields a uniform shell.
   const wallThickness = input.wallThickness ?? rules.wallThickness
   const floorThickness = input.floorThickness ?? wallThickness
-  const lidThickness = input.lidThickness ?? rules.lidThickness
+  // A head recess removes material from the lid, and what is left is what holds
+  // the screw down. Grown here when the author did not state a thickness, and
+  // checked below when they did -- the same treatment every other inferred
+  // dimension gets.
+  const lidMountMinimum = getLidMountMinimumThicknessMm({
+    mounts: input.mounts ?? [],
+    rules,
+  })
+  const lidThickness =
+    input.lidThickness ??
+    Math.max(rules.lidThickness, lidMountMinimum?.value ?? 0)
+  if (lidMountMinimum && lidThickness + 1e-9 < lidMountMinimum.value) {
+    throw new Error(
+      `lidThickness must be at least ${formatMm(lidMountMinimum.value)} ${
+        lidMountMinimum.because
+      }, but is ${formatMm(lidThickness)}`,
+    )
+  }
   const boardClearance = input.boardClearance ?? rules.boardClearance
   const standoffHeight = input.standoffHeight ?? rules.standoffHeight
   const topHeadroom = input.topHeadroom ?? rules.topHeadroom

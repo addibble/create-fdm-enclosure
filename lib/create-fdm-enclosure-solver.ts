@@ -5,6 +5,7 @@ import {
 } from "@tscircuit/solver-utils"
 import type { GraphicsObject } from "graphics-debug"
 import { ComposeFdmEnclosureSolver } from "./fdm/compose-fdm-enclosure-solver"
+import { checkFdmDesignRules } from "./fdm/check-fdm-design-rules"
 import { CreateFdmApertureCutoutsSolver } from "./fdm/create-fdm-aperture-cutouts-solver"
 import { CreateFdmEnclosureShellSolver } from "./fdm/create-fdm-enclosure-shell-solver"
 import { ResolveFdmEnclosureProblemSolver } from "./fdm/resolve-fdm-enclosure-problem-solver"
@@ -92,6 +93,28 @@ export class CreateFdmEnclosureSolver extends BasePipelineSolver<CreateFdmEnclos
         this.createFdmApertureCutoutsSolver,
         "createFdmApertureCutoutsSolver",
       ).getOutput(),
+      mounts: resolved.mounts,
+      // Measured against the aperture solver's own tool depths rather than a
+      // second derivation of them, so a check can only ever describe the
+      // geometry that is actually subtracted.
+      designRuleViolations: checkFdmDesignRules({
+        dimensions: resolved.dimensions,
+        components: resolved.components,
+        board: resolved.board,
+        mounts: resolved.mounts,
+        placements: resolved.apertures,
+        cutDepths: requireStage(
+          this.createFdmApertureCutoutsSolver,
+          "createFdmApertureCutoutsSolver",
+        )
+          .getOutput()
+          .map((aperture) => aperture.cutDepth),
+        rules: resolved.rules,
+      }),
+      // Flattened from the mounts rather than accumulated alongside them, so
+      // there is one place a piece of hardware can come from and no way for the
+      // BOM to disagree with the geometry that consumes it.
+      hardware: resolved.mounts.flatMap((mount) => mount.hardware),
       jscadPlan: composedPlans.assembledPlan,
     }
   }

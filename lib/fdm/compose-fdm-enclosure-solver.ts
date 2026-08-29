@@ -2,6 +2,7 @@ import { BaseSolver } from "@tscircuit/solver-utils"
 import type { GraphicsObject } from "graphics-debug"
 import type { JscadOperation } from "jscad-planner"
 import type { ResolvedEnclosureAperture } from "../enclosure"
+import { createMountFeaturePlans } from "./create-mount-feature-plans"
 import { visualizeFdmEnclosure } from "./visualize-fdm-enclosure"
 import type {
   ComposedFdmEnclosurePlans,
@@ -37,15 +38,47 @@ export class ComposeFdmEnclosureSolver extends BaseSolver {
     const cutouts = this.params.apertureCutouts.map(
       (cutout) => cutout.jscadPlan,
     )
-    const applyCutouts = (plan: JscadOperation): JscadOperation =>
-      cutouts.length === 0
-        ? plan
-        : {
-            type: "subtract",
-            shapes: [plan, ...cutouts],
-          }
-    const basePlan = applyCutouts(this.params.shellPlans.basePlan)
-    const lidPlan = applyCutouts(this.params.shellPlans.lidPlan)
+    const { dimensions, frame, rules, mounts } = this.params.resolved
+    const mountPlans = mounts.map((mount) =>
+      createMountFeaturePlans({
+        mount,
+        rules,
+        lidThicknessMm: dimensions.lidThickness,
+        totalHeightMm: frame.totalHeight,
+      }),
+    )
+
+    // Adds before subtracts, always: a boss that were unioned after its own bore
+    // would fill the bore back in. Keeping the two lists separate is what makes
+    // that ordering a property of composition rather than of every feature
+    // builder remembering it.
+    const build = (
+      shell: JscadOperation,
+      adds: JscadOperation[],
+      subtracts: JscadOperation[],
+    ): JscadOperation => {
+      const solid: JscadOperation =
+        adds.length === 0 ? shell : { type: "union", shapes: [shell, ...adds] }
+      return subtracts.length === 0
+        ? solid
+        : { type: "subtract", shapes: [solid, ...subtracts] }
+    }
+
+    const basePlan = build(
+      this.params.shellPlans.basePlan,
+      mountPlans.flatMap((plan) => plan.baseAdds),
+      // Apertures are subtracted after the bosses are fused, so an opening that
+      // overlaps a boss removes the material in its way rather than being
+      // covered by it. That is the right outcome -- the part has to fit -- but it
+      // silently weakens the boss, and a boss/aperture collision check belongs
+      // with the other placement rules once they exist.
+      [...mountPlans.flatMap((plan) => plan.baseSubtracts), ...cutouts],
+    )
+    const lidPlan = build(
+      this.params.shellPlans.lidPlan,
+      mountPlans.flatMap((plan) => plan.lidAdds),
+      [...mountPlans.flatMap((plan) => plan.lidSubtracts), ...cutouts],
+    )
     this.enclosurePlans = {
       parts: [
         { id: "base", jscadPlan: basePlan },
