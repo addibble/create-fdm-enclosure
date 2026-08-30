@@ -101,9 +101,10 @@ export const SCREW_HEAD_SPECS: Record<
     },
     countersunk: {
       head: "countersunk",
-      standard: "ISO 7046",
-      headDiameterMm: 3.8,
-      headHeightMm: 1.2,
+      standard: "ISO 10642",
+      headDiameterMm: 3.7,
+      theoreticalHeadDiameterMm: 4.7,
+      headHeightMm: 1.35,
       countersinkAngleDegrees: 90,
     },
     pan: {
@@ -122,9 +123,10 @@ export const SCREW_HEAD_SPECS: Record<
     },
     countersunk: {
       head: "countersunk",
-      standard: "ISO 7046",
-      headDiameterMm: 4.7,
-      headHeightMm: 1.5,
+      standard: "ISO 10642",
+      headDiameterMm: 4.8,
+      theoreticalHeadDiameterMm: 5.88,
+      headHeightMm: 1.69,
       countersinkAngleDegrees: 90,
     },
     pan: {
@@ -143,9 +145,10 @@ export const SCREW_HEAD_SPECS: Record<
     },
     countersunk: {
       head: "countersunk",
-      standard: "ISO 7046",
-      headDiameterMm: 5.6,
-      headHeightMm: 1.65,
+      standard: "ISO 10642",
+      headDiameterMm: 5.54,
+      theoreticalHeadDiameterMm: 6.72,
+      headHeightMm: 1.86,
       countersinkAngleDegrees: 90,
     },
     pan: {
@@ -170,9 +173,10 @@ export const SCREW_HEAD_SPECS: Record<
     },
     countersunk: {
       head: "countersunk",
-      standard: "ISO 7046",
-      headDiameterMm: 7.5,
-      headHeightMm: 2.2,
+      standard: "ISO 10642",
+      headDiameterMm: 7.53,
+      theoreticalHeadDiameterMm: 8.96,
+      headHeightMm: 2.48,
       countersinkAngleDegrees: 90,
     },
     pan: {
@@ -197,9 +201,10 @@ export const SCREW_HEAD_SPECS: Record<
     },
     countersunk: {
       head: "countersunk",
-      standard: "ISO 7046",
-      headDiameterMm: 9.2,
-      headHeightMm: 2.5,
+      standard: "ISO 10642",
+      headDiameterMm: 9.43,
+      theoreticalHeadDiameterMm: 11.2,
+      headHeightMm: 3.1,
       countersinkAngleDegrees: 90,
     },
     pan: {

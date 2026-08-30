@@ -98,8 +98,11 @@ test("a countersunk screw is drawn at the length it was ordered, head included",
     return Math.min(...children.map(lowestZ))
   }
 
-  // 14 overall - 1.65 of buried head = 12.35 of shank below the seat.
-  expect(lowestZ(countersunk)).toBeCloseTo(-12.35)
+  // 14 overall - 1.86 of buried head = 12.14 of shank below the seat.
+  // The head height is ISO 10642's `k`, measured to the theoretical sharp
+  // corner; changing standard changes this number, which is why the invariant
+  // worth holding is the one below -- the part is the length it was ordered.
+  expect(lowestZ(countersunk)).toBeCloseTo(-12.14)
   // A cap head sits proud, so all 14mm is below the seat.
   expect(lowestZ(socketCap)).toBeCloseTo(-14)
 })

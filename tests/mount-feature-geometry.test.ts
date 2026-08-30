@@ -103,10 +103,12 @@ test("a lid mount grows a column on the lid, then bores through both", () => {
   // The countersink is a hull of two coaxial discs -- there is no cone in the
   // plan vocabulary, and the hull of two discs is exactly the frustum between
   // them. Its top disc is the head diameter plus recess clearance, and it meets
-  // the clearance hole 1.1mm down, so the head seats flush without a lip.
+  // the clearance hole 1.27mm down -- a 90 degree cone descends by the radius it
+  // sheds -- so the head seats flush without a lip.
   const hulls = cuts.flatMap(walk).filter((node) => node.type === "hull")
   expect(hulls).toHaveLength(1)
   const hullDiscs = cylindersOf(hulls[0]!)
-  expect(hullDiscs[0]!.radius).toBeCloseTo(3)
+  // ISO 10642 M3 head is 5.54 across, plus 0.4 of recess clearance.
+  expect(hullDiscs[0]!.radius).toBeCloseTo(2.97)
   expect(hullDiscs[1]!.radius).toBeCloseTo(1.7)
 })

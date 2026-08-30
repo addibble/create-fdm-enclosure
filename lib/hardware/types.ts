@@ -78,14 +78,32 @@ export interface ScrewHeadSpec {
   /** Published standard, used to build the BOM designation. */
   standard: string
   /**
-   * Head diameter. For a countersunk head this is the theoretical sharp
-   * diameter, which is what sizes the cone cut into the part beneath it.
+   * The head edge you can measure on the real part -- ISO 10642's `dk actual
+   * min` for a countersunk head.
+   *
+   * This, not the theoretical corner, is what a countersink must be cut to. A
+   * cone cut to the theoretical diameter is a parallel cone sitting outboard of
+   * the head's own, so the screw descends until it contacts and finishes below
+   * flush instead of in it.
    */
   headDiameterMm: number
-  /** Head height. Sets counterbore depth, and the seat depth of a countersink. */
+  /**
+   * Head height.
+   *
+   * Sets counterbore depth. For a countersunk head this is ISO 10642's `k max`,
+   * measured to the THEORETICAL sharp corner, so it is deeper than the cone
+   * actually cut -- `getHeadRecessDepthMm` derives that seat from the diameters
+   * and the angle instead, and must keep doing so.
+   */
   headHeightMm: number
   /** Included angle of a countersunk head, in degrees. Absent for other styles. */
   countersinkAngleDegrees?: number
+  /**
+   * ISO 10642 `dk theor max` -- the diameter the taper reaches if extended to a
+   * sharp corner. Recorded because it is the published headline figure and is
+   * easily mistaken for the one above; no geometry is sized from it.
+   */
+  theoreticalHeadDiameterMm?: number
 }
 
 /** One threaded insert offered for a thread, in one series. */
