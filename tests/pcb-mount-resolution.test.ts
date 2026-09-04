@@ -11,9 +11,9 @@ test("a PCB mount resolves a boss, an insert that fits, and the hardware it cons
         id: "EN1.H1",
         fastens: "board",
         anchor: { x: -15, y: -8 },
-        thread: "M3",
+        thread: "m3",
         fastening: "heat_set_insert",
-        head: "socket_cap",
+        head: "socketcap",
         // 3.2mm is the close-fit hole practically every layout drills for an M3.
         pcbHoleDiameter: 3.2,
       },
@@ -58,9 +58,9 @@ test("a taller standoff takes the longer insert series", () => {
         id: "EN1.H1",
         fastens: "board",
         anchor: { x: -15, y: -8 },
-        thread: "M3",
+        thread: "m3",
         fastening: "heat_set_insert",
-        head: "socket_cap",
+        head: "socketcap",
       },
     ],
   })
@@ -80,9 +80,9 @@ test("a PCB hole too small for the screw shank is a design error", () => {
           id: "EN1.H1",
           fastens: "board",
           anchor: { x: -15, y: -8 },
-          thread: "M3",
+          thread: "m3",
           fastening: "heat_set_insert",
-          head: "socket_cap",
+          head: "socketcap",
           // A 2.2mm hole is an M2 clearance -- a plausible mistake, and one that
           // produces a perfectly renderable enclosure the screw cannot enter.
           pcbHoleDiameter: 2.2,
@@ -90,7 +90,7 @@ test("a PCB hole too small for the screw shank is a design error", () => {
       ],
     }),
   ).toThrow(
-    "EN1.H1: the PCB hole is 2.2mm, which will not pass a M3 screw -- it needs at least 3.2mm",
+    "EN1.H1: the PCB hole is 2.2mm, which will not pass an M3 screw -- it needs at least 3.2mm",
   )
 })
 
@@ -102,9 +102,9 @@ test("hardware carries the element that generated it, generically", () => {
         id: "EN1.H1",
         fastens: "board",
         anchor: { x: -15, y: -8 },
-        thread: "M3",
+        thread: "m3",
         fastening: "heat_set_insert",
-        head: "socket_cap",
+        head: "socketcap",
         // A pair of strings, not a `pcbHoleId`: the enclosure generates bosses
         // from holes, but the same field has to carry the pin header behind a
         // jumper wire without the contract changing shape.
@@ -114,7 +114,7 @@ test("hardware carries the element that generated it, generically", () => {
         id: "EN1.corner",
         fastens: "lid",
         anchor: { x: 15, y: 8 },
-        thread: "M3",
+        thread: "m3",
         fastening: "heat_set_insert",
         head: "countersunk",
       },

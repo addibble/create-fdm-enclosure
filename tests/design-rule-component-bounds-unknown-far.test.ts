@@ -14,9 +14,9 @@ test("a part clear of every mount in plan is not reported for missing bounds", (
         id: "EN1.H1",
         fastens: "board",
         anchor: { x: -12, y: -6 },
-        thread: "M3",
+        thread: "m3",
         fastening: "heat_set_insert",
-        head: "socket_cap",
+        head: "socketcap",
       },
     ],
     components: [

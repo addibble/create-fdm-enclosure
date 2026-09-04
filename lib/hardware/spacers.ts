@@ -1,4 +1,5 @@
 import { formatMm } from "format-si-unit"
+import { formatThreadDesignation } from "./get-fastener-designation"
 import type { FastenerThread } from "./types"
 
 /**
@@ -58,40 +59,40 @@ export interface SpacerSpec {
 }
 
 export const SPACER_SPECS: Record<FastenerThread, SpacerSpec> = {
-  M2: {
-    thread: "M2",
+  m2: {
+    thread: "m2",
     material: "nylon",
     innerDiameterMm: 2.2,
     outerDiameterMm: 4,
     availableLengthsMm: [3, 4, 5, 6, 8, 10, 12, 15, 20, 25],
     stockLengthMm: 300,
   },
-  "M2.5": {
-    thread: "M2.5",
+  "m2.5": {
+    thread: "m2.5",
     material: "nylon",
     innerDiameterMm: 2.7,
     outerDiameterMm: 5,
     availableLengthsMm: [3, 4, 5, 6, 8, 10, 12, 15, 20, 25],
     stockLengthMm: 300,
   },
-  M3: {
-    thread: "M3",
+  m3: {
+    thread: "m3",
     material: "nylon",
     innerDiameterMm: 3.2,
     outerDiameterMm: 6,
     availableLengthsMm: [3, 4, 5, 6, 8, 10, 12, 15, 20, 25],
     stockLengthMm: 300,
   },
-  M4: {
-    thread: "M4",
+  m4: {
+    thread: "m4",
     material: "nylon",
     innerDiameterMm: 4.3,
     outerDiameterMm: 7,
     availableLengthsMm: [3, 4, 5, 6, 8, 10, 12, 15, 20, 25],
     stockLengthMm: 300,
   },
-  M5: {
-    thread: "M5",
+  m5: {
+    thread: "m5",
     material: "nylon",
     innerDiameterMm: 5.3,
     outerDiameterMm: 9,
@@ -148,7 +149,7 @@ export const selectSpacer = ({
   }
   if (spec.innerDiameterMm + 1e-9 < minimumBoreDiameterMm) {
     throw new Error(
-      `${label}: the ${thread} spacer's ${spec.innerDiameterMm}mm bore will not pass a screw needing ${minimumBoreDiameterMm}mm`,
+      `${label}: the ${formatThreadDesignation(thread)} spacer's ${spec.innerDiameterMm}mm bore will not pass a screw needing ${minimumBoreDiameterMm}mm`,
     )
   }
   if (gapMm < MIN_CUT_LENGTH_MM) {

@@ -18,9 +18,9 @@ test("an aperture reaching into a lid column is reported with how deep it cuts",
         id: "EN1.H1",
         fastens: "lid",
         anchor,
-        thread: "M3",
+        thread: "m3",
         fastening: "heat_set_insert",
-        head: "socket_cap",
+        head: "socketcap",
         // The column spans board-top to lid, which is exactly the band a
         // side-wall opening for a connector occupies.
         lidColumn: "printed",

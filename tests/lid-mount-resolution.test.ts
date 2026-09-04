@@ -5,7 +5,7 @@ const board = { width: 40, height: 24, thickness: 1.6 }
 
 const lidMount = (
   lidColumn?: "printed" | "spacer" | "none",
-  head: "countersunk" | "socket_cap" = "countersunk",
+  head: "countersunk" | "socketcap" = "countersunk",
 ) =>
   createFdmEnclosure({
     board,
@@ -18,7 +18,7 @@ const lidMount = (
         // column and no rule growing the box in XY to make room for one.
         fastens: "lid",
         anchor: { x: -15, y: -8 },
-        thread: "M3",
+        thread: "m3",
         fastening: "heat_set_insert",
         head,
         lidColumn,
@@ -46,7 +46,7 @@ test("a lid screw reaches from the lid's outer face down to the same floor boss"
     enclosure.frame.totalHeight - coneHeightMm,
   )
   // A cap head takes no recess by default, so its seat IS the outer face.
-  expect(lidMount(undefined, "socket_cap").mounts[0]!.headSeatZ).toBeCloseTo(
+  expect(lidMount(undefined, "socketcap").mounts[0]!.headSeatZ).toBeCloseTo(
     enclosure.frame.totalHeight,
   )
 
@@ -114,9 +114,9 @@ test("a counterbore too deep for the lid grows it, and says so when it cannot", 
         id: "EN1.H1",
         fastens: "lid",
         anchor: { x: -15, y: -8 },
-        thread: "M3",
+        thread: "m3",
         fastening: "heat_set_insert",
-        head: "socket_cap",
+        head: "socketcap",
         headRecess: "counterbore",
       },
     ],
@@ -133,9 +133,9 @@ test("lidColumn on a board mount is rejected rather than ignored", () => {
           id: "EN1.H1",
           fastens: "board",
           anchor: { x: -15, y: -8 },
-          thread: "M3",
+          thread: "m3",
           fastening: "heat_set_insert",
-          head: "socket_cap",
+          head: "socketcap",
           lidColumn: "printed",
         },
       ],
@@ -165,7 +165,7 @@ test("cut spacers of one length are one line with a count, not a length of stock
       id: `EN1.H${x < 0 ? 1 : 2}`,
       fastens: "lid" as const,
       anchor: { x, y: -8 },
-      thread: "M3" as const,
+      thread: "m3" as const,
       fastening: "heat_set_insert" as const,
       head: "countersunk" as const,
       lidColumn: "spacer" as const,
@@ -198,7 +198,7 @@ test("a gap no spacer can fill is refused with the reason", () => {
           id: "EN1.H1",
           fastens: "lid",
           anchor: { x: -15, y: -8 },
-          thread: "M3",
+          thread: "m3",
           fastening: "heat_set_insert",
           head: "countersunk",
           lidColumn: "spacer",
@@ -222,9 +222,9 @@ test("a countersunk head on a board mount is refused, not silently flattened", (
           id: "EN1.H1",
           fastens: "board",
           anchor: { x: -15, y: -8 },
-          thread: "M3",
+          thread: "m3",
           fastening: "heat_set_insert",
-          head: "socket_cap",
+          head: "socketcap",
           ...over,
         } as never,
       ],

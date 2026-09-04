@@ -1,6 +1,12 @@
 import { formatMm } from "format-si-unit"
+import { formatThreadDesignation } from "./get-fastener-designation"
 import { getThreadSpec } from "./select-fastener"
-import type { FastenerThread, HeadRecess, ScrewHeadSpec } from "./types"
+import type {
+  FastenerThread,
+  HeadRecess,
+  ScrewHead,
+  ScrewHeadSpec,
+} from "./types"
 
 /**
  * How far a screw must engage its thread to hold.
@@ -97,6 +103,7 @@ export interface ScrewLengthResolution {
 export const resolveScrewLength = ({
   thread,
   headSpec,
+  head,
   headRecess,
   clampedThicknessMm,
   engagementMm,
@@ -107,6 +114,12 @@ export const resolveScrewLength = ({
 }: {
   thread: FastenerThread
   headSpec: ScrewHeadSpec
+  /**
+   * The head style, passed alongside its spec because the spec no longer names
+   * itself: the catalogue is keyed by head, so repeating the key inside the
+   * value would be a second place for it to be wrong.
+   */
+  head: ScrewHead
   headRecess: HeadRecess
   /**
    * Material between the head's bearing surface and the start of the thread it
@@ -139,14 +152,16 @@ export const resolveScrewLength = ({
     ...(suppliedLengthsMm ?? getThreadSpec(thread).availableLengthsMm),
   ].sort((a, b) => a - b)
   if (availableLengthsMm.length === 0) {
-    throw new Error(`${label}: no stocked ${thread} lengths were supplied`)
+    throw new Error(
+      `${label}: no stocked ${formatThreadDesignation(thread)} lengths were supplied`,
+    )
   }
   const headSeatDepthMm = getHeadSeatDepthMm({
     headSpec,
     headRecess,
     nominalDiameterMm: getThreadSpec(thread).nominalDiameterMm,
   })
-  const isOverallLength = headSpec.head === "countersunk"
+  const isOverallLength = head === "countersunk"
   const headAllowanceMm = isOverallLength ? headSpec.headHeightMm : 0
 
   const requiredUnderHeadLengthMm =
@@ -167,14 +182,14 @@ export const resolveScrewLength = ({
   if (authoredLengthMm !== undefined) {
     if (authoredLengthMm + 1e-9 < minDesignatedLengthMm) {
       throw new Error(
-        `${label}: an authored ${thread}x${authoredLengthMm} screw engages only ${formatMm(
+        `${label}: an authored ${formatThreadDesignation(thread)}x${authoredLengthMm} screw engages only ${formatMm(
           describe(authoredLengthMm).engagementMm,
         )} of thread, but this stack needs ${formatMm(engagementMm)}`,
       )
     }
     if (authoredLengthMm - 1e-9 > maxDesignatedLengthMm) {
       throw new Error(
-        `${label}: an authored ${thread}x${authoredLengthMm} screw is ${formatMm(
+        `${label}: an authored ${formatThreadDesignation(thread)}x${authoredLengthMm} screw is ${formatMm(
           authoredLengthMm - maxDesignatedLengthMm,
         )} too long for this stack, so it bottoms out before it clamps`,
       )
@@ -187,9 +202,9 @@ export const resolveScrewLength = ({
   )
   if (rounded === undefined) {
     throw new Error(
-      `${label}: this stack needs a ${thread} screw at least ${formatMm(
+      `${label}: this stack needs a ${formatThreadDesignation(thread)} screw at least ${formatMm(
         minDesignatedLengthMm,
-      )} long, but the longest stocked ${thread} is ${formatMm(
+      )} long, but the longest stocked ${formatThreadDesignation(thread)} is ${formatMm(
         availableLengthsMm[availableLengthsMm.length - 1]!,
       )}`,
     )
@@ -203,7 +218,7 @@ export const resolveScrewLength = ({
     .reverse()
     .find((candidate) => candidate <= maxDesignatedLengthMm + 1e-9)
   throw new Error(
-    `${label}: no stocked ${thread} screw fits this stack -- it needs at least ${formatMm(
+    `${label}: no stocked ${formatThreadDesignation(thread)} screw fits this stack -- it needs at least ${formatMm(
       minDesignatedLengthMm,
     )} to engage and at most ${formatMm(
       maxDesignatedLengthMm,

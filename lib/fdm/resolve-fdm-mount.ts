@@ -5,6 +5,7 @@ import type {
 } from "../enclosure"
 import type { EnclosureAssemblyFrame } from "../assembly"
 import {
+  formatThreadDesignation,
   getBomGroupKey,
   getHeadRecess,
   getHeadSeatDepthMm,
@@ -14,7 +15,7 @@ import {
   getScrewDesignation,
   getScrewDisplayValue,
   getInsertHardwareString,
-  getScrewHardwareString,
+  getThreadedFastenerHardwareString,
   getScrewHeadSpec,
   getSpacerDesignation,
   getSpacerHardwareString,
@@ -132,7 +133,7 @@ export const resolveFdmMount = ({
     throw new Error(
       `${label}: the PCB hole is ${formatMm(
         mount.pcbHoleDiameter,
-      )}, which will not pass a ${mount.thread} screw -- it needs at least ${formatMm(
+      )}, which will not pass an ${formatThreadDesignation(mount.thread)} screw -- it needs at least ${formatMm(
         threadSpec.closeClearanceHoleMm,
       )}`,
     )
@@ -167,6 +168,7 @@ export const resolveFdmMount = ({
   const screwLength = resolveScrewLength({
     thread: mount.thread,
     headSpec,
+    head: mount.head,
     headRecess,
     clampedThicknessMm,
     engagementMm,
@@ -215,14 +217,15 @@ export const resolveFdmMount = ({
       role: "screw",
       mountId: mount.id,
       designation: screwDesignation,
-      hardwareString: getScrewHardwareString({
+      hardwareString: getThreadedFastenerHardwareString({
         thread: mount.thread,
         designatedLengthMm: screwLength.designatedLengthMm,
         head: mount.head,
+        fastening: mount.fastening,
       }),
       displayValue: getScrewDisplayValue({
         thread: mount.thread,
-        headSpec,
+        head: mount.head,
         designatedLengthMm: screwLength.designatedLengthMm,
       }),
       manufacturerPartNumber: mount.manufacturerPartNumber,
@@ -233,18 +236,18 @@ export const resolveFdmMount = ({
     },
   ]
   if (insert) {
-    const insertDesignation = getInsertDesignation(insert)
+    const insertDesignation = getInsertDesignation(mount.thread, insert)
     hardware.push({
       id: `${mount.id}.insert`,
       role: "insert",
       mountId: mount.id,
       designation: insertDesignation,
       hardwareString: getInsertHardwareString({
-        thread: insert.thread,
+        thread: mount.thread,
         lengthMm: insert.lengthMm,
         method: insert.method,
       }),
-      displayValue: getInsertDisplayValue(insert),
+      displayValue: getInsertDisplayValue(mount.thread, insert),
       bomGroupKey: getBomGroupKey(insertDesignation),
       generatedBy: mount.generatedBy,
       position: { x: center.x, y: center.y, z: bossTopZ },

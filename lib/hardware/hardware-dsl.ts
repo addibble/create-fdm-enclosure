@@ -1,5 +1,10 @@
 import { formatMm } from "format-si-unit"
-import type { FastenerThread, ScrewHead } from "./types"
+import type {
+  FasteningMethod,
+  FastenerThread,
+  InsertMethod,
+  ScrewHead,
+} from "./types"
 
 /**
  * A compact string that fully determines a piece of hardware.
@@ -8,9 +13,10 @@ import type { FastenerThread, ScrewHead } from "./types"
  * the *same grammar*: segments joined by `_`, each segment a lowercase name
  * followed by an optional numeric value.
  *
- *     screw_m3_l8_socketcap
- *     insert_m3_l5.7_heatset
- *     spacer_od6_id3.2_l6.3
+ *     screw_m3_l8mm_socketcap
+ *     bolt_m3_l10mm_countersunk
+ *     heatsetinsert_m3_l5.7mm
+ *     spacer_od6mm_id3.2mm_l6.3mm
  *
  * ## Why a string at all, when we already have typed props
  *
@@ -24,8 +30,10 @@ import type { FastenerThread, ScrewHead } from "./types"
  *
  * - **identity** -- it is canonical and total, so two pieces with the same string
  *   are the same part, which is exactly what a BOM group key needs;
- * - **geometry** -- `getHardwareModel` turns it into a solid, so a purchased part
- *   can be *drawn* without anyone shipping a mesh for it;
+ * - **geometry** -- `@tscircuit/jscad-assembly-hardware` turns it into a solid, so
+ *   a purchased part can be *drawn* without anyone shipping a mesh for it. The
+ *   grammar is `@tscircuit/modelprinter`'s, so every string emitted here must
+ *   parse there; `tests/hardware-string-round-trip.test.ts` holds that shut.
  * - **storage** -- it is 20 bytes where a JSCAD plan is kilobytes, and it is
  *   diffable, greppable and human-readable in a saved `circuit.json`.
  *
@@ -69,15 +77,6 @@ export const parseHardwareString = (
   return segments
 }
 
-const HEAD_TOKENS: Record<ScrewHead, string> = {
-  socket_cap: "socketcap",
-  countersunk: "countersunk",
-  pan: "pan",
-  button: "button",
-}
-
-const threadToken = (thread: FastenerThread) => thread.toLowerCase()
-
 /**
  * Format a dimension into a hardware string.
  *
@@ -101,19 +100,43 @@ const dimensionToken = (valueMm: number): string => {
   return formatMm(valueMm)
 }
 
-/** `screw_m3_l8_socketcap` */
-export const getScrewHardwareString = ({
+/**
+ * `screw_m3_l8mm_socketcap`, or `bolt_m3_l8mm_socketcap`.
+ *
+ * A screw and a bolt are the same solid; they differ in what they thread into,
+ * and that is a property of the MOUNT, not of the piece -- so the family is
+ * chosen from the fastening method rather than read off the fastener. It is not
+ * a cosmetic distinction: `jscad-assembly-hardware` colours a screw steel and a
+ * bolt black-oxide precisely so the two are told apart in a section view, which
+ * is the view the hardware exists to make legible.
+ */
+export const getThreadedFastenerHardwareString = ({
   thread,
   designatedLengthMm,
   head,
+  fastening,
 }: {
   thread: FastenerThread
   designatedLengthMm: number
   head: ScrewHead
+  fastening: FasteningMethod
 }): string =>
-  `screw_${threadToken(thread)}_l${dimensionToken(designatedLengthMm)}_${HEAD_TOKENS[head]}`
+  `${fastening === "self_tapping" ? "screw" : "bolt"}_${thread}_l${dimensionToken(
+    designatedLengthMm,
+  )}_${head}`
 
-/** `insert_m3_l5.7_heatset` */
+/**
+ * `heatsetinsert_m3_l5.7mm`
+ *
+ * The method leads the family name rather than trailing it, because in
+ * modelprinter's vocabulary the family IS the method. An earlier spelling here
+ * was `insert_m3_l5.7mm_heatset`, which no modelprinter family matches -- so the
+ * one string that was supposed to be "the mechanical twin of a footprinter
+ * string" could not be expanded into a solid by the renderers that consume it.
+ *
+ * A press-fit insert has no modelprinter family, so it has no model string; it
+ * is still a BOM line, and it is simply not drawn.
+ */
 export const getInsertHardwareString = ({
   thread,
   lengthMm,
@@ -121,11 +144,11 @@ export const getInsertHardwareString = ({
 }: {
   thread: FastenerThread
   lengthMm: number
-  method: "heat_set_insert" | "press_fit_insert"
-}): string =>
-  `insert_${threadToken(thread)}_l${dimensionToken(lengthMm)}_${
-    method === "heat_set_insert" ? "heatset" : "pressfit"
-  }`
+  method: InsertMethod
+}): string | null =>
+  method === "heat_set_insert"
+    ? `heatsetinsert_${thread}_l${dimensionToken(lengthMm)}`
+    : null
 
 /**
  * `spacer_od6_id3.2_l6.3`

@@ -12,12 +12,17 @@ import type { HeadRecess, ScrewHead } from "./types"
  * part, but an M3 cap head is 3mm tall and a printed lid is 2mm, so defaulting
  * to one would cut a recess straight through the lid of every box that did not
  * ask for it.
+ *
+ * Partial because the vocabulary is `modelprinter`'s, which is a superset of
+ * what the catalogue stocks: `flathead` and `hexflange` parse but no thread
+ * carries dimensions for them. Absent means "not modelled", which is reported,
+ * rather than silently taking a neighbouring style's recess.
  */
-const DEFAULT_HEAD_RECESS: Record<ScrewHead, HeadRecess> = {
+const DEFAULT_HEAD_RECESS: Partial<Record<ScrewHead, HeadRecess>> = {
   countersunk: "countersink",
-  socket_cap: "none",
-  pan: "none",
-  button: "none",
+  socketcap: "none",
+  panhead: "none",
+  buttonhead: "none",
 }
 
 /**
@@ -45,7 +50,7 @@ export const getHeadRecess = ({
     // thing the countersunk rule further down exists to forbid.
     if (head === "countersunk") {
       throw new Error(
-        `${label}: a countersunk head cannot seat on a board mount -- the head bears on the PCB, which the enclosure does not machine, so the cone would bear on its rim. Use head="socket_cap", "pan" or "button", or fasten the lid instead.`,
+        `${label}: a countersunk head cannot seat on a board mount -- the head bears on the PCB, which the enclosure does not machine, so the cone would bear on its rim. Use head="socketcap", "panhead" or "buttonhead", or fasten the lid instead.`,
       )
     }
     if (authoredHeadRecess && authoredHeadRecess !== "none") {
@@ -55,7 +60,13 @@ export const getHeadRecess = ({
     }
     return "none"
   }
-  const recess = authoredHeadRecess ?? DEFAULT_HEAD_RECESS[head]
+  const defaultRecess = DEFAULT_HEAD_RECESS[head]
+  if (!defaultRecess) {
+    throw new Error(
+      `${label}: a ${head} head is not modelled, so there is no recess it seats in; use "socketcap", "countersunk", "panhead" or "buttonhead"`,
+    )
+  }
+  const recess = authoredHeadRecess ?? defaultRecess
   if (head === "countersunk" && recess !== "countersink") {
     throw new Error(
       `${label}: a countersunk head requires headRecess="countersink", but "${recess}" was given: a conical head bears on its rim on a flat surface, so it neither seats nor clamps`,

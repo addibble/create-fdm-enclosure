@@ -11,9 +11,9 @@ const mountAt = (x: number, y: number) =>
         id: "EN1.H1",
         fastens: "board",
         anchor: { x, y },
-        thread: "M3",
+        thread: "m3",
         fastening: "heat_set_insert",
-        head: "socket_cap",
+        head: "socketcap",
       },
     ],
   }).designRuleViolations.filter(

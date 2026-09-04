@@ -15,9 +15,9 @@ test("a mount placed off the board is an error, not an overhang warning", () => 
         id: "EN1.H1",
         fastens: "board",
         anchor: { x: 24, y: 0 },
-        thread: "M3",
+        thread: "m3",
         fastening: "heat_set_insert",
-        head: "socket_cap",
+        head: "socketcap",
       },
     ],
   })

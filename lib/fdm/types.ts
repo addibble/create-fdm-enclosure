@@ -102,7 +102,12 @@ export interface HardwareOccurrence {
    * lowers these into CAD expands it; a renderer that learns the vocabulary can
    * skip even that.
    */
-  hardwareString: string
+  /**
+   * Null when the piece has no modelprinter family -- a press-fit insert today.
+   * It is still a BOM line; it is simply not drawn, which is better than being
+   * drawn as something else.
+   */
+  hardwareString: string | null
   displayValue: string
   manufacturerPartNumber?: string
   supplierPartNumbers?: Record<string, string[]>

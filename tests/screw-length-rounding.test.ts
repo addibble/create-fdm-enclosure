@@ -8,7 +8,7 @@ import { getScrewHeadSpec, resolveScrewLength } from "../lib/hardware"
  * land on a stocked size.
  */
 const stack = {
-  thread: "M3",
+  thread: "m3",
   clampedThicknessMm: 3.2,
   engagementMm: 5.5,
   label: "EN1.corner",
@@ -17,7 +17,8 @@ const stack = {
 test("a derived length is rounded up to a stocked length, not to a round number", () => {
   const resolved = resolveScrewLength({
     ...stack,
-    headSpec: getScrewHeadSpec("M3", "socket_cap"),
+    head: "socketcap",
+    headSpec: getScrewHeadSpec("m3", "socketcap"),
     headRecess: "none",
     maxUnderHeadLengthMm: 12,
   })
@@ -31,7 +32,8 @@ test("a derived length is rounded up to a stocked length, not to a round number"
 test("a counterbore buries the head, so the screw needs less length under it", () => {
   const resolved = resolveScrewLength({
     ...stack,
-    headSpec: getScrewHeadSpec("M3", "socket_cap"),
+    head: "socketcap",
+    headSpec: getScrewHeadSpec("m3", "socketcap"),
     headRecess: "counterbore",
     maxUnderHeadLengthMm: 12,
   })
@@ -45,13 +47,15 @@ test("a counterbore buries the head, so the screw needs less length under it", (
 test("a countersunk screw's designated length includes its head", () => {
   const countersunk = resolveScrewLength({
     ...stack,
-    headSpec: getScrewHeadSpec("M3", "countersunk"),
+    head: "countersunk",
+    headSpec: getScrewHeadSpec("m3", "countersunk"),
     headRecess: "countersink",
     maxUnderHeadLengthMm: 12,
   })
   const socketCap = resolveScrewLength({
     ...stack,
-    headSpec: getScrewHeadSpec("M3", "socket_cap"),
+    head: "socketcap",
+    headSpec: getScrewHeadSpec("m3", "socketcap"),
     headRecess: "counterbore",
     maxUnderHeadLengthMm: 12,
   })
@@ -62,7 +66,7 @@ test("a countersunk screw's designated length includes its head", () => {
   // larger, and treating them alike orders every countersunk screw 1.65mm short.
   expect(
     countersunk.designatedLengthMm - countersunk.underHeadLengthMm,
-  ).toBeCloseTo(getScrewHeadSpec("M3", "countersunk").headHeightMm)
+  ).toBeCloseTo(getScrewHeadSpec("m3", "countersunk").headHeightMm)
   expect(socketCap.designatedLengthMm - socketCap.underHeadLengthMm).toBe(0)
 
   // 3.2 clamped - 1.27 of buried head + 5.5 engagement = 7.43 needed under the
@@ -82,7 +86,8 @@ test("rounding up stops at the length that would bottom out", () => {
   expect(
     resolveScrewLength({
       ...shallow,
-      headSpec: getScrewHeadSpec("M3", "socket_cap"),
+      head: "socketcap",
+      headSpec: getScrewHeadSpec("m3", "socketcap"),
       headRecess: "none",
       maxUnderHeadLengthMm: 8.5,
     }).designatedLengthMm,
@@ -93,7 +98,8 @@ test("rounding up stops at the length that would bottom out", () => {
   expect(() =>
     resolveScrewLength({
       ...shallow,
-      headSpec: getScrewHeadSpec("M3", "socket_cap"),
+      head: "socketcap",
+      headSpec: getScrewHeadSpec("m3", "socketcap"),
       headRecess: "none",
       maxUnderHeadLengthMm: 7.5,
     }),
@@ -104,7 +110,8 @@ test("a stack no stocked screw fits is reported with both bounds", () => {
   expect(() =>
     resolveScrewLength({
       ...stack,
-      headSpec: getScrewHeadSpec("M3", "socket_cap"),
+      head: "socketcap",
+      headSpec: getScrewHeadSpec("m3", "socketcap"),
       headRecess: "none",
       // Needs 8.7 to engage; bottoms out past 8.2. Nothing stocked is in between.
       maxUnderHeadLengthMm: 8.2,
@@ -118,7 +125,8 @@ test("an authored length is still held to the engagement rule", () => {
   expect(() =>
     resolveScrewLength({
       ...stack,
-      headSpec: getScrewHeadSpec("M3", "socket_cap"),
+      head: "socketcap",
+      headSpec: getScrewHeadSpec("m3", "socketcap"),
       headRecess: "none",
       maxUnderHeadLengthMm: 12,
       authoredLengthMm: 6,
@@ -134,7 +142,8 @@ test("a vendor's own length series overrides the built-in one", () => {
   // default series -- which is the seam a hardware engine plugs into.
   const resolved = resolveScrewLength({
     ...stack,
-    headSpec: getScrewHeadSpec("M3", "socket_cap"),
+    head: "socketcap",
+    headSpec: getScrewHeadSpec("m3", "socketcap"),
     headRecess: "none",
     maxUnderHeadLengthMm: 20,
     availableLengthsMm: [6, 12, 18],

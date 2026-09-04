@@ -1,4 +1,5 @@
 import { INSERT_SPECS, SCREW_HEAD_SPECS, THREAD_SPECS } from "./catalogue"
+import { formatThreadDesignation } from "./get-fastener-designation"
 import type {
   FastenerThread,
   FasteningMethod,
@@ -45,7 +46,12 @@ export const getScrewHeadSpec = (
   if (!spec) {
     const available = Object.keys(byHead ?? {}).join(", ")
     throw new Error(
-      `No stocked ${thread} screw with a ${head} head. Available head styles for ${thread}: ${available}`,
+      // The thread is written as a standard designates it, because that
+      // sentence is about a part somebody buys. The head styles are written as
+      // the AUTHOR must type them, because that sentence is an instruction --
+      // these used to be the solver's own spelling (`socket_cap`, `pan`), every
+      // one of which `@tscircuit/props` rejects.
+      `No stocked ${formatThreadDesignation(thread)} screw with a ${head} head. Available head styles: ${available}`,
     )
   }
   return spec
@@ -67,7 +73,7 @@ export const getInsertOptions = (
   )
   if (!options?.length) {
     throw new Error(
-      `No stocked ${thread} ${method.replace(/_/g, " ")} in the fastener catalogue`,
+      `No stocked ${formatThreadDesignation(thread)} ${method.replace(/_/g, " ")} in the fastener catalogue`,
     )
   }
   return [...options].sort((a, b) => b.threadedLengthMm - a.threadedLengthMm)

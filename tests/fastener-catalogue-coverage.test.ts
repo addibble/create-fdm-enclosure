@@ -11,19 +11,19 @@ test("an unstocked thread/head combination is reported, not substituted", () => 
   // error rather than a quiet fallback to a neighbouring head style -- which
   // would change both the recess geometry and the BOM line while still
   // rendering a perfectly plausible enclosure.
-  expect(() => getScrewHeadSpec("M2.5", "button")).toThrow(
-    "No stocked M2.5 screw with a button head",
+  expect(() => getScrewHeadSpec("m2.5", "buttonhead")).toThrow(
+    "No stocked M2.5 screw with a buttonhead head",
   )
-  expect(() => getScrewHeadSpec("M2.5", "button")).toThrow(
-    "Available head styles for M2.5: socket_cap, countersunk, pan",
+  expect(() => getScrewHeadSpec("m2.5", "buttonhead")).toThrow(
+    "Available head styles: socketcap, countersunk, panhead",
   )
 
-  expect(getScrewHeadSpec("M3", "button").headDiameterMm).toBe(5.7)
+  expect(getScrewHeadSpec("m3", "buttonhead").headDiameterMm).toBe(5.7)
 })
 
 test("an unknown thread is an error rather than the nearest size", () => {
   expect(() => getThreadSpec("M3.5" as never)).toThrow(
-    "M3.5 is not in the fastener catalogue. Available threads: M2, M2.5, M3, M4, M5",
+    "M3.5 is not in the fastener catalogue. Available threads: m2, m2.5, m3, m4, m5",
   )
 })
 

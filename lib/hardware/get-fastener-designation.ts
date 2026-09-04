@@ -1,5 +1,21 @@
-import type { InsertSpec, ScrewHeadSpec } from "./types"
-import type { FastenerThread } from "./types"
+import type {
+  FastenerThread,
+  InsertSpec,
+  ScrewHead,
+  ScrewHeadSpec,
+} from "./types"
+
+/**
+ * A thread as a standards designation writes it: `m3` -> `M3`.
+ *
+ * The internal vocabulary is lowercase because that is what an author writes
+ * and what a model string carries. A BOM line is neither: it is read by a buyer
+ * against ISO tables, where the thread is `M3`. Converting here keeps the one
+ * place the two conventions meet in the one function whose output a human buys
+ * from.
+ */
+export const formatThreadDesignation = (thread: FastenerThread): string =>
+  thread.toUpperCase()
 
 /**
  * Canonical specification identity for a purchased piece.
@@ -23,31 +39,38 @@ export const getScrewDesignation = ({
   thread: FastenerThread
   headSpec: ScrewHeadSpec
   designatedLengthMm: number
-}): string => `${headSpec.standard} ${thread}x${designatedLengthMm}`
+}): string =>
+  `${headSpec.standard} ${formatThreadDesignation(thread)}x${designatedLengthMm}`
 
-export const getInsertDesignation = (insert: InsertSpec): string =>
-  `${insert.method.replace(/_/g, "-")} ${insert.thread}x${insert.lengthMm} ${insert.series}`
+export const getInsertDesignation = (
+  thread: FastenerThread,
+  insert: InsertSpec,
+): string =>
+  `${insert.method.replace(/_/g, "-")} ${formatThreadDesignation(thread)}x${insert.lengthMm} ${insert.series}`
 
-const HEAD_LABELS: Record<string, string> = {
-  socket_cap: "socket head cap screw",
+const HEAD_LABELS: Partial<Record<ScrewHead, string>> = {
+  socketcap: "socket head cap screw",
   countersunk: "countersunk head screw",
-  pan: "pan head screw",
-  button: "button head screw",
+  panhead: "pan head screw",
+  buttonhead: "button head screw",
 }
 
 export const getScrewDisplayValue = ({
   thread,
-  headSpec,
+  head,
   designatedLengthMm,
 }: {
   thread: FastenerThread
-  headSpec: ScrewHeadSpec
+  head: ScrewHead
   designatedLengthMm: number
 }): string =>
-  `${thread} x ${designatedLengthMm}mm ${HEAD_LABELS[headSpec.head] ?? headSpec.head}`
+  `${formatThreadDesignation(thread)} x ${designatedLengthMm}mm ${HEAD_LABELS[head] ?? head}`
 
-export const getInsertDisplayValue = (insert: InsertSpec): string =>
-  `${insert.thread} ${insert.method === "heat_set_insert" ? "heat-set" : "press-fit"} insert, ${insert.lengthMm}mm ${insert.series}`
+export const getInsertDisplayValue = (
+  thread: FastenerThread,
+  insert: InsertSpec,
+): string =>
+  `${formatThreadDesignation(thread)} ${insert.method === "heat_set_insert" ? "heat-set" : "press-fit"} insert, ${insert.lengthMm}mm ${insert.series}`
 
 /**
  * Key that collapses identical pieces into one MBOM line with a quantity.

@@ -18,9 +18,9 @@ test("a side aperture directly above a floor boss does not collide with it", () 
         id: "EN1.H1",
         fastens: "board",
         anchor,
-        thread: "M3",
+        thread: "m3",
         fastening: "heat_set_insert",
-        head: "socket_cap",
+        head: "socketcap",
       },
     ],
     apertures: [

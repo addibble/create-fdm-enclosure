@@ -1,6 +1,5 @@
 export * from "./catalogue"
 export * from "./get-fastener-designation"
-export * from "./get-hardware-model"
 export * from "./get-head-recess"
 export * from "./hardware-dsl"
 export * from "./get-head-recess-depth"
