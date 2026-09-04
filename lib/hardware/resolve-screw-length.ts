@@ -31,10 +31,30 @@ export const getRequiredEngagementMm = (params: {
 export const getHeadSeatDepthMm = ({
   headSpec,
   headRecess,
+  nominalDiameterMm,
 }: {
   headSpec: ScrewHeadSpec
   headRecess: HeadRecess
-}): number => (headRecess === "none" ? 0 : headSpec.headHeightMm)
+  /** Needed to derive a countersunk head's real height; see below. */
+  nominalDiameterMm: number
+}): number => {
+  if (headRecess === "none") return 0
+  // A counterbore swallows the whole head, so its own height is the depth.
+  if (headRecess === "counterbore") return headSpec.headHeightMm
+  // A countersunk head is NOT `k` tall. `k` is measured to the theoretical
+  // sharp corner, which does not exist in steel -- the real head is truncated
+  // at `dk actual`, and its cone runs from there down to the shank. At M3 that
+  // is 1.27mm against a published k of 1.86mm.
+  //
+  // This must equal what the geometry package draws above its datum, because
+  // that is what the number is FOR: it places the part. Same formula, same
+  // angle, so the two cannot drift.
+  const halfAngleRad =
+    (((headSpec.countersinkAngleDegrees ?? 90) / 2) * Math.PI) / 180
+  return (
+    (headSpec.headDiameterMm - nominalDiameterMm) / 2 / Math.tan(halfAngleRad)
+  )
+}
 
 export interface ScrewLengthResolution {
   /**
@@ -121,7 +141,11 @@ export const resolveScrewLength = ({
   if (availableLengthsMm.length === 0) {
     throw new Error(`${label}: no stocked ${thread} lengths were supplied`)
   }
-  const headSeatDepthMm = getHeadSeatDepthMm({ headSpec, headRecess })
+  const headSeatDepthMm = getHeadSeatDepthMm({
+    headSpec,
+    headRecess,
+    nominalDiameterMm: getThreadSpec(thread).nominalDiameterMm,
+  })
   const isOverallLength = headSpec.head === "countersunk"
   const headAllowanceMm = isOverallLength ? headSpec.headHeightMm : 0
 

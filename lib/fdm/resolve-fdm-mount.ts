@@ -152,7 +152,11 @@ export const resolveFdmMount = ({
     thread: mount.thread,
     insertThreadedLengthMm: insert?.threadedLengthMm,
   })
-  const headSeatDepthMm = getHeadSeatDepthMm({ headSpec, headRecess })
+  const headSeatDepthMm = getHeadSeatDepthMm({
+    headSpec,
+    headRecess,
+    nominalDiameterMm: threadSpec.nominalDiameterMm,
+  })
   // The hard limit is the floor, not the insert: an insert is a barrel open at
   // both ends, so a screw may continue past it into the bore below. What it may
   // not do is reach material -- which is what `availableBoreDepthMm` already
@@ -189,8 +193,16 @@ export const resolveFdmMount = ({
   )
 
   // Where the head's bearing surface sits: on the PCB's top face, or on the
-  // lid's outer face.
-  const headSeatZ = fastensLid ? frame.totalHeight : frame.boardTopZ
+  // lid's outer face -- less the recess, when one is cut.
+  //
+  // `headSeatDepthMm` is how far a recess sinks the seat below the surface, and
+  // it already shortens the screw above. It has to move the part too, or the
+  // head is drawn resting on top of a hole it should be sitting inside: the
+  // length says recessed and the render says proud. Zero for a board mount,
+  // which never has a machinable seat.
+  const headSeatZ = fastensLid
+    ? frame.totalHeight - headSeatDepthMm
+    : frame.boardTopZ
 
   const screwDesignation = getScrewDesignation({
     thread: mount.thread,

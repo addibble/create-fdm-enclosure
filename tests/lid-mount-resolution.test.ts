@@ -34,7 +34,21 @@ test("a lid screw reaches from the lid's outer face down to the same floor boss"
   // board. What differs is how far the screw reaches past it.
   expect(mount!.bossBottomZ).toBeCloseTo(enclosure.dimensions.floorThickness)
   expect(mount!.bossTopZ).toBeCloseTo(enclosure.frame.boardBottomZ)
-  expect(mount!.headSeatZ).toBeCloseTo(enclosure.frame.totalHeight)
+  // The head seat is the lid's outer face LESS whatever recess is cut for the
+  // head. This mount is countersunk by default, so the cone sinks the seat by
+  // the head's own height -- which is the point of a countersink, and the part
+  // has to be placed there or it renders proud of the hole made for it.
+  // Sunk by the head's REAL height above the datum -- the cone from its actual
+  // edge down to the shank -- not by ISO's k, which measures to a theoretical
+  // corner 0.59mm further up and would bury the head that much too deep.
+  const coneHeightMm = (mount!.headSpec.headDiameterMm - 3) / 2 // 90 degrees: 1mm down per 1mm in
+  expect(mount!.headSeatZ).toBeCloseTo(
+    enclosure.frame.totalHeight - coneHeightMm,
+  )
+  // A cap head takes no recess by default, so its seat IS the outer face.
+  expect(lidMount(undefined, "socket_cap").mounts[0]!.headSeatZ).toBeCloseTo(
+    enclosure.frame.totalHeight,
+  )
 
   // Spans lid plate + headroom + board: 15.6 total - 6.0 board bottom = 9.6,
   // less the 1.65 buried countersunk head, plus 3.0 of insert thread = 10.95
