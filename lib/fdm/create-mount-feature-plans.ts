@@ -147,8 +147,20 @@ export const createMountFeaturePlans = ({
       // is exactly the frustum between them. The lower disc is the clearance
       // hole, so the cut meets the hole it continues rather than leaving a lip
       // for the head to catch on.
-      const topDiameterMm =
-        mount.headSpec.headDiameterMm + rules.headRecessClearanceMm
+      //
+      // The mouth is the head's own bearing diameter, with NO
+      // `headRecessClearanceMm` added. That clearance is a counterbore's: it
+      // keeps a cylindrical head from being a press fit, and depth is
+      // independent of it. On a cone it is not clearance at all -- widening the
+      // mouth without deepening the cut opens the angle, and the two together
+      // are what set where the head lands. Adding it drew a 99.8-degree cone
+      // for a 90-degree head, which touched only at the rim where the cone runs
+      // into the clearance hole.
+      //
+      // `recessDepthMm` derives from the same head diameter and the head's own
+      // angle (`getHeadRecessDepthMm`), so the cone is at the head's angle by
+      // construction rather than by two tables agreeing.
+      const topDiameterMm = mount.headSpec.headDiameterMm
       lidSubtracts.push({
         type: "hull",
         shapes: [

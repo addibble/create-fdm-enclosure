@@ -17,6 +17,34 @@ const walk = (plan: JscadOperation): JscadOperation[] => {
   ]
 }
 
+/**
+ * Discs with the z their enclosing `translate` puts them at, so a test can
+ * measure the cone a hull describes rather than only its two radii. `cylinder`
+ * emits `translate([x, y, midZ]) { cylinder }`, so the mid-plane is the
+ * translate's z and the face is half the height either side.
+ */
+const discsWithZ = (
+  plan: JscadOperation,
+  z = 0,
+): Array<{ radius: number; height: number; midZ: number }> => {
+  const node = plan as JscadOperation & {
+    type: string
+    radius?: number
+    height?: number
+    vector?: number[]
+    shapes?: JscadOperation[]
+    shape?: JscadOperation
+  }
+  if (node.type === "cylinder") {
+    return [{ radius: node.radius!, height: node.height!, midZ: z }]
+  }
+  const nextZ = node.type === "translate" ? z + (node.vector?.[2] ?? 0) : z
+  return [
+    ...(node.shapes ?? []).flatMap((s) => discsWithZ(s, nextZ)),
+    ...(node.shape ? discsWithZ(node.shape, nextZ) : []),
+  ]
+}
+
 const cylindersOf = (plan: JscadOperation) =>
   walk(plan)
     .filter(
@@ -102,13 +130,35 @@ test("a lid mount grows a column on the lid, then bores through both", () => {
 
   // The countersink is a hull of two coaxial discs -- there is no cone in the
   // plan vocabulary, and the hull of two discs is exactly the frustum between
-  // them. Its top disc is the head diameter plus recess clearance, and it meets
-  // the clearance hole 1.27mm down -- a 90 degree cone descends by the radius it
-  // sheds -- so the head seats flush without a lip.
+  // them.
   const hulls = cuts.flatMap(walk).filter((node) => node.type === "hull")
   expect(hulls).toHaveLength(1)
   const hullDiscs = cylindersOf(hulls[0]!)
-  // ISO 10642 M3 head is 5.54 across, plus 0.4 of recess clearance.
-  expect(hullDiscs[0]!.radius).toBeCloseTo(2.97)
+  // Cut to the head's own bearing diameter: ISO 10642 M3 is 5.54 across. NOT
+  // plus `headRecessClearanceMm` -- that is a counterbore's diametral slop, and
+  // a cone has no press fit to relieve. Adding it here opened the cut to 99.8
+  // degrees on a 90-degree head, and the head then met the cut only at the rim
+  // where the cone runs into the clearance hole.
+  expect(hullDiscs[0]!.radius).toBeCloseTo(2.77)
   expect(hullDiscs[1]!.radius).toBeCloseTo(1.7)
+
+  // The property the two radii cannot pin on their own, and the one the head
+  // actually seats on: the cone is cut at the angle the head is ground to. It
+  // meets the clearance hole 1.07mm down -- a 90 degree cone descends by the
+  // radius it sheds -- so the head bears on the whole cone face and finishes
+  // flush.
+  const [mouth, throat] = discsWithZ(hulls[0]!) as [
+    { radius: number; height: number; midZ: number },
+    { radius: number; height: number; midZ: number },
+  ]
+  // Face to face: the mouth's lower face down to the throat's upper face.
+  const cutDepthMm =
+    mouth.midZ - mouth.height / 2 - (throat.midZ + throat.height / 2)
+  expect(cutDepthMm).toBeCloseTo(1.07, 2)
+  const includedAngleDegrees =
+    (2 * Math.atan((mouth.radius - throat.radius) / cutDepthMm) * 180) / Math.PI
+  // Within the 1e-3 epsilon that keeps the throat disc non-degenerate. Wide
+  // enough to be robust, and nowhere near wide enough to admit the 99.8 degrees
+  // the cut was drawn at when its mouth carried a counterbore's clearance.
+  expect(Math.abs(includedAngleDegrees - 90)).toBeLessThan(0.1)
 })

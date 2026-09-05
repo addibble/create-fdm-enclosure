@@ -12,19 +12,67 @@ import type {
 } from "../types"
 
 /**
- * Board-frame footprint of a part, as an axis-aligned box in its own frame.
+ * Distance from a mount axis to a part, in millimetres, or `undefined` when
+ * nothing supplied bounds it.
  *
- * Takes the larger of the body and the footprint on each axis, for the reason
- * `getComponentBodyFaceExtent` does: a footprint is only where the pads are, and
- * a connector shell commonly overhangs it, while a pad fan can reach further out
- * than the body. Neither alone bounds the part.
+ * **The two envelopes a part supplies are in different frames, and cannot be
+ * combined into one box.**
+ *
+ * - `size` is the body in the part's own, unrotated frame, so the rectangle it
+ *   actually occupies is found by rotating the axis into that frame -- exact,
+ *   including for a part turned 45 degrees.
+ * - `footprint` is already an axis-aligned *board-frame* box measured across the
+ *   pads. Its orientation has been projected away, so there is nothing to
+ *   un-rotate it back to.
+ *
+ * Each is therefore tested in the frame it is stated in, and the nearer answer
+ * wins. "Neither alone bounds the part" is a statement about the part -- a
+ * connector shell overhangs its pads, a pad fan reaches past the shell -- not
+ * licence to `Math.max` two numbers that mean different things. Doing that read
+ * a board-frame width as a part-frame one: for a 20x2mm connector rotated 90
+ * degrees, the box came out 20mm wide along the axis the boss approached from
+ * when the part is 2mm wide there, and the boss driven straight through it
+ * reported nothing. That is a false negative on the one finding this check
+ * exists to raise.
  */
-const getComponentFootprintBox = (component: EnclosureBoardComponent) => {
-  const { size, footprint } = component.body
-  return {
-    width: Math.max(size?.x ?? 0, footprint?.width ?? 0),
-    height: Math.max(size?.y ?? 0, footprint?.height ?? 0),
+const getAxisToComponentDistanceMm = (
+  component: EnclosureBoardComponent,
+  /** Mount axis relative to the part's centre, in board-frame millimetres. */
+  axisFromComponentCenter: { x: number; y: number },
+): number | undefined => {
+  const { size, footprint, rotation } = component.body
+  const distancesMm: number[] = []
+
+  if (size && size.x > 0 && size.y > 0) {
+    const turn = ((rotation ?? 0) * Math.PI) / 180
+    const axisInPartFrame = {
+      x:
+        axisFromComponentCenter.x * Math.cos(-turn) -
+        axisFromComponentCenter.y * Math.sin(-turn),
+      y:
+        axisFromComponentCenter.x * Math.sin(-turn) +
+        axisFromComponentCenter.y * Math.cos(-turn),
+    }
+    distancesMm.push(
+      pointToBoxDistance(axisInPartFrame, {
+        center: { x: 0, y: 0 },
+        width: size.x,
+        height: size.y,
+      }),
+    )
   }
+
+  if (footprint && footprint.width > 0 && footprint.height > 0) {
+    distancesMm.push(
+      pointToBoxDistance(axisFromComponentCenter, {
+        center: { x: 0, y: 0 },
+        width: footprint.width,
+        height: footprint.height,
+      }),
+    )
+  }
+
+  return distancesMm.length ? Math.min(...distancesMm) : undefined
 }
 
 /**
@@ -111,8 +159,11 @@ export const checkComponentClearance = ({
 
     for (const component of components) {
       const componentSide = component.boardSide ?? "top"
-      const box = getComponentFootprintBox(component)
-      if (box.width <= 0 || box.height <= 0) {
+      const distanceMm = getAxisToComponentDistanceMm(component, {
+        x: mount.center.x - component.center.x,
+        y: mount.center.y - component.center.y,
+      })
+      if (distanceMm === undefined) {
         unmeasuredComponentIds.add(component.id)
         continue
       }
@@ -120,23 +171,7 @@ export const checkComponentClearance = ({
       for (const column of columns) {
         if (column.side !== componentSide) continue
 
-        // The part's own frame, so a rotated part is tested against the
-        // rectangle it actually occupies rather than the larger box that
-        // rectangle spans in board axes.
-        const turn = ((component.body.rotation ?? 0) * Math.PI) / 180
-        const dx = mount.center.x - component.center.x
-        const dy = mount.center.y - component.center.y
-        const axisInPartFrame = {
-          x: dx * Math.cos(-turn) - dy * Math.sin(-turn),
-          y: dx * Math.sin(-turn) + dy * Math.cos(-turn),
-        }
-
-        const clearanceMm =
-          pointToBoxDistance(axisInPartFrame, {
-            center: { x: 0, y: 0 },
-            width: box.width,
-            height: box.height,
-          }) - column.radiusMm
+        const clearanceMm = distanceMm - column.radiusMm
 
         // Clear of each other in plan, so how tall either one is cannot matter.
         if (clearanceMm >= rules.minComponentClearanceMm) continue
