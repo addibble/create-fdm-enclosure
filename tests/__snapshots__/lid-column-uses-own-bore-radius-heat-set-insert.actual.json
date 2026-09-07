@@ -1,0 +1,18 @@
+{
+  "boreEdgeX": 16.69990150859664,
+  "apertureEdgeX": 18.35,
+  "remainingWallMm": 1.6500984914033623,
+  "removedVolume": 0.7667126131772863,
+  "violations": [
+    {
+      "rule": "insert_not_encircled",
+      "severity": "warning",
+      "measuredMm": 1.3500000000000014,
+      "limitMm": 1.6,
+      "mountId": "EN1.H1",
+      "apertureIndex": 0,
+      "face": "x_pos",
+      "message": "The x_pos aperture cuts 0.25mm into the lid column of mount \"EN1.H1\", leaving 1.35mm of wall around its bore where the design rules require 1.6mm."
+    }
+  ]
+}

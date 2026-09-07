@@ -1,0 +1,13 @@
+{
+  "collisionVolume": 9.42970965859224,
+  "violations": [
+    {
+      "rule": "board_edge_clearance",
+      "severity": "warning",
+      "measuredMm": -1.6,
+      "limitMm": 0,
+      "mountId": "EN1.H1",
+      "message": "The screw boss of mount \"EN1.H1\" reaches 1.60mm past the board edge, so the board bears on only part of it. Move the mount at least 1.60mm inboard."
+    }
+  ]
+}

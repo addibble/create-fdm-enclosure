@@ -1,0 +1,15 @@
+{
+  "height": 0.6,
+  "collisionVolume": 0.345226289496425,
+  "violations": [
+    {
+      "rule": "component_clearance",
+      "severity": "error",
+      "measuredMm": -0.6000000000000001,
+      "limitMm": 0.5,
+      "mountId": "EN1.H1",
+      "componentId": "C1",
+      "message": "The screw boss of mount \"EN1.H1\" runs through \"C1\" on the bottom of the board. The board cannot seat: move the mount or the part."
+    }
+  ]
+}

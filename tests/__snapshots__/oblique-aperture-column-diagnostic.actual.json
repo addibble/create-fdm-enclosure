@@ -1,0 +1,15 @@
+{
+  "removedColumnVolume": 15.76765278654549,
+  "cutterInsideBoreVolume": 1.0549832584221672,
+  "violations": [],
+  "allViolations": [
+    {
+      "rule": "board_edge_clearance",
+      "severity": "warning",
+      "measuredMm": -0.6000000000000001,
+      "limitMm": 0,
+      "mountId": "EN1.H1",
+      "message": "The screw boss of mount \"EN1.H1\" reaches 0.60mm past the board edge, so the board bears on only part of it. Move the mount at least 0.60mm inboard."
+    }
+  ]
+}
