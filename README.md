@@ -127,6 +127,15 @@ Aperture geometry is authored around the component interaction axis:
   is vertical; and
 - circle: `radius` defines the profile.
 
+Each resolved cutting tool carries one serializable matrix `transform` operation
+around its local shape. The column-major mat4 maps right-handed tool-local
+coordinates (X width, Y height, Z depth, in millimetres) into the right-handed,
+Z-up enclosure frame. Existing degree inputs are converted to quaternions once:
+local opening roll, then face orientation, then incidence about enclosure Z.
+The inward offset follows that rotated axis. Consumers needing intersections
+must execute this same placed plan; they must not reconstruct its position from
+an aperture's center or its axis-aligned bounding box.
+
 An oblique cylinder naturally makes an elliptical wall intersection. The solver
 extends the cutter enough to cross both wall surfaces without changing the
 authored component-relative depth. Fit validation uses the projected oblique

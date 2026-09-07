@@ -118,7 +118,9 @@ test.each([
   // 15mm of travel into a 14.6mm box: the tool passes clean through the far
   // shell rather than stopping inside it.
   const cut = createFdmEnclosure(vertical).apertures[0]!
-  const originZ = (cut.jscadPlan as any).vector[2]
+  if (cut.jscadPlan.type !== "transform")
+    throw new Error("Expected a matrix-placed aperture")
+  const originZ = cut.jscadPlan.matrix[14]
   const [low, high] = [
     originZ - cut.cutDepth / 2,
     originZ + cut.cutDepth / 2,

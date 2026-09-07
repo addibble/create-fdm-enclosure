@@ -6,10 +6,9 @@ import { createApertureCutoutPlan } from "../lib"
  * plane and width/height are already margin-inflated, so the geometry stage only
  * orients the cutting prism and translates it.
  *
- * Every tool is authored in the face-local frame and turned onto its face by a
- * single `rotate`, so the plan for a side aperture is always the same three
- * nodes: translate -> rotate -> shape. `aperture-face-axis-mapping.test.ts`
- * covers where those local axes actually land in the world.
+ * Every tool is authored in the face-local frame and placed by one composed
+ * matrix. `aperture-face-axis-mapping.test.ts` covers where those local axes
+ * actually land in the world.
  */
 test("an aperture owns its shape and orientation on every face", () => {
   const pill = createApertureCutoutPlan({
@@ -56,23 +55,20 @@ test("an aperture owns its shape and orientation on every face", () => {
   // The union is built flat in the local frame and rotated as one piece, rather
   // than each of the pill's three parts being oriented on its own.
   expect(pill.jscadPlan).toMatchObject({
-    type: "translate",
-    vector: [4, -14, 6],
-    shape: {
-      type: "rotate",
-      angles: [Math.PI / 2, 0, 0],
-      shape: { type: "union" },
-    },
+    type: "transform",
+    shape: { type: "union" },
   })
   expect(circle.jscadPlan).toMatchObject({
-    type: "translate",
-    vector: [22, -3, 7],
-    shape: {
-      type: "rotate",
-      angles: [Math.PI / 2, 0, Math.PI / 2],
-      shape: { type: "cylinder", radius: 2.5, height: 3 },
-    },
+    type: "transform",
+    shape: { type: "cylinder", radius: 2.5, height: 3 },
   })
+  if (
+    pill.jscadPlan.type !== "transform" ||
+    circle.jscadPlan.type !== "transform"
+  )
+    throw new Error("Expected matrix-placed aperture tools")
+  expect(pill.jscadPlan.matrix.slice(12, 15)).toEqual([4, -14, 6])
+  expect(circle.jscadPlan.matrix.slice(12, 15)).toEqual([22, -3, 7])
 })
 
 test("a horizontal face cuts straight down Z with no rotation", () => {
@@ -99,9 +95,8 @@ test("a horizontal face cuts straight down Z with no rotation", () => {
 
   expect(lidHole.cutDepth).toBeCloseTo(3)
   expect(lidHole.jscadPlan).toMatchObject({
-    type: "translate",
-    vector: [7, -3, 21],
-    // No `rotate` wrapper: the prism is authored along +Z already.
+    type: "transform",
+    matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 7, -3, 21, 1],
     shape: { type: "cylinder", radius: 3.3, height: 3 },
   })
 
@@ -127,8 +122,8 @@ test("a horizontal face cuts straight down Z with no rotation", () => {
 
   // Rect on a horizontal face: extents land in X and Y, depth in Z.
   expect(floorHole.jscadPlan).toMatchObject({
-    type: "translate",
-    vector: [-5, 2, 1],
+    type: "transform",
+    matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -5, 2, 1, 1],
     shape: { type: "cuboid", size: [4, 3, 3] },
   })
 })

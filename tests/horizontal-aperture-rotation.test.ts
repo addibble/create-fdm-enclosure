@@ -1,7 +1,9 @@
 import { expect, test } from "bun:test"
+import { measurements } from "@jscad/modeling"
 import { createApertureCutoutPlan } from "../lib/apertures/create-aperture-cutout-plan"
 import { resolveFdmEnclosureProblem } from "../lib"
 import type { EnclosureFace } from "../lib"
+import { executeApertureTestSolid } from "./fixtures/execute-aperture-solid"
 
 const planFor = (face: EnclosureFace, rotation: number) =>
   createApertureCutoutPlan({
@@ -24,40 +26,25 @@ const planFor = (face: EnclosureFace, rotation: number) =>
     },
   }).jscadPlan
 
-const rotationsIn = (plan: any): number[][] => {
-  const found: number[][] = []
-  const walk = (node: any) => {
-    if (!node || typeof node !== "object") return
-    if (node.type === "rotate") found.push(node.angles)
-    for (const key of ["shape", "shapes"]) {
-      const child = node[key]
-      if (Array.isArray(child)) child.forEach(walk)
-      else walk(child)
-    }
-  }
-  walk(plan)
-  return found
-}
-
 // A part on the lid or the floor can sit at any rotation on the board, so its
 // opening has to turn with it. Otherwise a rotated rectangular connector gets a
 // cutout still squared to board X/Y, and the part fouls its own hole.
 test("a horizontal aperture turns with the part", () => {
-  const unrotated = rotationsIn(planFor("z_pos", 0))
-  const rotated = rotationsIn(planFor("z_pos", 30))
-
-  // A horizontal face needs no rotation onto the face, so the roll is the only
-  // rotation in the plan.
-  expect(unrotated).toEqual([])
-  expect(rotated).toHaveLength(1)
-  expect(rotated[0]![0]).toBeCloseTo(0, 9)
-  expect(rotated[0]![1]).toBeCloseTo(0, 9)
-  expect(rotated[0]![2]).toBeCloseTo((30 * Math.PI) / 180, 9)
+  const unrotated = measurements.measureDimensions(
+    executeApertureTestSolid(planFor("z_pos", 0)),
+  )
+  const rotated = measurements.measureDimensions(
+    executeApertureTestSolid(planFor("z_pos", 30)),
+  )
+  expect(unrotated).toEqual([10, 4, 3])
+  expect(rotated[0]).toBeCloseTo(10.660254037844386, 9)
+  expect(rotated[1]).toBeCloseTo(8.464101615137754, 9)
+  expect(rotated[2]).toBeCloseTo(3, 9)
 })
 
 test("the floor turns the same way as the lid", () => {
-  const lid = rotationsIn(planFor("z_pos", 45))
-  const floor = rotationsIn(planFor("z_neg", 45))
+  const lid = planFor("z_pos", 45)
+  const floor = planFor("z_neg", 45)
   expect(floor).toEqual(lid)
 })
 

@@ -47,15 +47,12 @@ test("an oblique tool keeps its rotation datum and fully spans both wall surface
       x: center.x - (axis.x * inwardProjection) / 2,
       y: center.y - (axis.y * inwardProjection) / 2,
     }
-    const plan = cutout.jscadPlan as {
-      type: string
-      vector: [number, number, number]
-    }
-
-    expect(plan.type).toBe("translate")
-    expect(plan.vector[0]).toBeCloseTo(expectedOrigin.x)
-    expect(plan.vector[1]).toBeCloseTo(expectedOrigin.y)
-    expect(plan.vector[2]).toBe(center.z)
+    const plan = cutout.jscadPlan
+    expect(plan.type).toBe("transform")
+    if (plan.type !== "transform") throw new Error("Expected a placed tool")
+    expect(plan.matrix[12]).toBeCloseTo(expectedOrigin.x)
+    expect(plan.matrix[13]).toBeCloseTo(expectedOrigin.y)
+    expect(plan.matrix[14]).toBe(center.z)
 
     const cosine = Math.abs(Math.cos(radians))
     const expectedDepth =
