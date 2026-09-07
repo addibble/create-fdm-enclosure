@@ -1,3 +1,5 @@
+import type { FastenerThread } from "../hardware/types"
+
 /**
  * FDM process/design-rule profile.
  *
@@ -54,6 +56,12 @@ export interface FdmDesignRules {
    * out.
    */
   selfTapPilotReliefMm: number
+  /** Default engagement in printed thermoplastic, in nominal thread diameters. */
+  selfTapEngagementDiameterRatio: number
+  /** Material/process-dependent pilot bores; not physical screw dimensions. */
+  selfTapPilotDiametersMm: Record<FastenerThread, number>
+  /** Entry mouth diameter divided by the installation bore diameter. */
+  boreEntryChamferDiameterRatio: number
   /**
    * Material that must remain below a blind bore. A bore that breaks through
    * turns the floor into a hole the screw can push a chip of plastic out of.
@@ -124,6 +132,15 @@ export const DEFAULT_FDM_DESIGN_RULES: FdmDesignRules = {
   minInsertWallMm: 1.6,
   insertMeltReliefMm: 0.5,
   selfTapPilotReliefMm: 1,
+  selfTapEngagementDiameterRatio: 2,
+  selfTapPilotDiametersMm: {
+    m2: 1.6,
+    "m2.5": 2.1,
+    m3: 2.5,
+    m4: 3.3,
+    m5: 4.2,
+  },
+  boreEntryChamferDiameterRatio: 1.2,
   minFloorUnderBoreMm: 0.8,
   headRecessClearanceMm: 0.4,
   minMaterialUnderHeadRecessMm: 0.8,

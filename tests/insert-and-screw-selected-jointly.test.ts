@@ -45,13 +45,8 @@ test("insert selection finds the feasible short insert and stocked 5mm screw", a
     }
   }
 
-  // A stricter floor reserve excludes the standard insert without moving the
-  // PCB, head seat, or enclosure. This is genuine solver output for the same
-  // physical stack, not a fabricated "successful" output for the rejected one.
-  const counterpart = createMountTestFixture({
-    ...input,
-    fdmRules: { minFloorUnderBoreMm: 1 },
-  })
+  // Render the formerly rejected input itself, not a stricter-policy surrogate.
+  const counterpart = createMountTestFixture(input)
   const screw = mountTestHardware(counterpart.output, "screw")
   const intersection = mountTestIntersection(screw, counterpart.base)
   const collisionVolume = mountTestVolume(intersection)
@@ -67,8 +62,8 @@ test("insert selection finds the feasible short insert and stocked 5mm screw", a
     focus: [0, 0, 6],
     span: 15,
     caption: [
-      "KNOWN FEASIBLE COUNTERPART - NOT THE REJECTED OUTPUT",
-      "Same 5mm standoff, stronger 1mm floor reserve selects SHORT",
+      "RESOLVED DEFAULT INPUT - 5mm STANDOFF",
+      "Complete pair search selects SHORT with the default floor reserve",
       "Actual solver output: 3mm insert + stocked M3x5 bolt",
       "Default reserve and authored 5mm must find this feasible pair.",
     ],

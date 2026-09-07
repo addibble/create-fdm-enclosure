@@ -91,6 +91,26 @@ export const createMountFeaturePlans = ({
       ...center,
     }),
   ]
+  const chamfer = mount.installation.boreEntryChamfer
+  if (chamfer.depthMm > 0) {
+    baseSubtracts.push({
+      type: "hull",
+      shapes: [
+        cylinder({
+          diameterMm: chamfer.outerDiameterMm,
+          bottomZ: bossTopZ,
+          topZ: bossTopZ + tolerance,
+          ...center,
+        }),
+        cylinder({
+          diameterMm: mount.boreDiameterMm,
+          bottomZ: bossTopZ - chamfer.depthMm,
+          topZ: bossTopZ - chamfer.depthMm + 1e-3,
+          ...center,
+        }),
+      ],
+    })
+  }
 
   const lidAdds: JscadOperation[] = []
   const lidSubtracts: JscadOperation[] = []
@@ -127,7 +147,7 @@ export const createMountFeaturePlans = ({
     )
 
     const recessDepthMm = getHeadRecessDepthMm({
-      headSpec: mount.headSpec,
+      fastener: mount.fastener,
       headRecess: mount.headRecess,
       clearanceDiameterMm: mount.screwClearanceDiameterMm,
     })
@@ -135,7 +155,7 @@ export const createMountFeaturePlans = ({
       lidSubtracts.push(
         cylinder({
           diameterMm:
-            mount.headSpec.headDiameterMm + rules.headRecessClearanceMm,
+            mount.fastener.head.diameterMm + rules.headRecessClearanceMm,
           bottomZ: totalHeightMm - recessDepthMm,
           topZ: totalHeightMm + tolerance,
           ...center,
@@ -160,7 +180,7 @@ export const createMountFeaturePlans = ({
       // `recessDepthMm` derives from the same head diameter and the head's own
       // angle (`getHeadRecessDepthMm`), so the cone is at the head's angle by
       // construction rather than by two tables agreeing.
-      const topDiameterMm = mount.headSpec.headDiameterMm
+      const topDiameterMm = mount.fastener.head.diameterMm
       lidSubtracts.push({
         type: "hull",
         shapes: [

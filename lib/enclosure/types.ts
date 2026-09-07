@@ -399,6 +399,18 @@ export interface EnclosureMountInput {
   headRecess?: HeadRecess
   /** Pins the screw length. Normally derived from the stack and rounded. */
   length?: number
+  /** Required thread engagement in millimetres; never silently shortened. */
+  threadEngagement?: number
+  /** Self-tapping installation bore diameter in millimetres. */
+  pilotDiameter?: number
+  /** Empty blind-bore depth below the screw tip, in millimetres. */
+  bottomClearance?: number
+  /** Self-tapping entry mouth / bore diameter ratio; 1 disables the chamfer. */
+  boreEntryChamfer?: number
+  /** Empty installation depth below the insert, in millimetres. */
+  insertBottomClearance?: number
+  /** Insert entry mouth / bore diameter ratio; 1 disables the chamfer. */
+  insertBoreEntryChamfer?: number
   /** Overrides the boss outside diameter, otherwise derived from the bore. */
   bossDiameter?: number
   /**

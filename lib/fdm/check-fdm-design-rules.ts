@@ -1,16 +1,19 @@
 import type {
   EnclosureBoardInput,
+  ResolvedEnclosureAperture,
   ResolvedEnclosureAperturePlacement,
-  ResolvedEnclosureInput,
 } from "../enclosure/types"
 import { checkApertureBridging } from "./design-rule-checks/check-aperture-bridging"
 import { checkBoardEdgeClearance } from "./design-rule-checks/check-board-edge-clearance"
 import { checkComponentClearance } from "./design-rule-checks/check-component-clearance"
 import { checkInsertEncirclement } from "./design-rule-checks/check-insert-encirclement"
 import { checkWallThickness } from "./design-rule-checks/check-wall-thickness"
+import { checkPrintedPartClearance } from "./design-rule-checks/check-printed-part-clearance"
 import type { FdmDesignRules } from "./design-rules"
 import type {
   FdmDesignRuleViolation,
+  FdmBoardComponent,
+  FdmEnclosurePart,
   ResolvedFdmEnclosureDimensions,
   ResolvedFdmMount,
 } from "./types"
@@ -28,8 +31,8 @@ import type {
  *
  * So they run in one place, after composition, over resolved data. Adding a rule
  * is a file under `design-rule-checks/` and a line here; each takes plain data
- * and returns violations, with no solver and no geometry kernel, so it is tested
- * by describing a design rather than by building an enclosure.
+ * and returns violations. Geometric checks execute the same plans consumed by
+ * composition; dimensions and AABBs alone cannot establish interference.
  *
  * Not yet checked: unsupported overhangs. Unlike the three below it cannot be
  * decided from resolved dimensions -- it needs the composed solid and the print
@@ -40,9 +43,9 @@ export const checkFdmDesignRules = (input: {
   dimensions: ResolvedFdmEnclosureDimensions
   mounts: ResolvedFdmMount[]
   placements: ResolvedEnclosureAperturePlacement[]
-  /** Tool depth per placement, positionally matched, from the cutout planner. */
-  cutDepths: number[]
-  components: ResolvedEnclosureInput["components"]
+  apertures: ResolvedEnclosureAperture[]
+  parts: FdmEnclosurePart[]
+  components: FdmBoardComponent[] | undefined
   board: EnclosureBoardInput
   rules: FdmDesignRules
 }): FdmDesignRuleViolation[] => [
@@ -50,5 +53,6 @@ export const checkFdmDesignRules = (input: {
   ...checkBoardEdgeClearance(input),
   ...checkComponentClearance(input),
   ...checkInsertEncirclement(input),
+  ...checkPrintedPartClearance(input),
   ...checkApertureBridging(input),
 ]

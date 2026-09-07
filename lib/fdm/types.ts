@@ -1,7 +1,10 @@
-import type { JscadOperation } from "jscad-planner"
+import type { JscadOperation, Matrix4 } from "jscad-planner"
+import type { ResolvedThreadedFastener } from "@tscircuit/jscad-assembly-hardware"
+import type { FdmInstallationPolicy } from "./resolve-installation-policy"
 import type { EnclosureAssemblyFrame } from "../assembly"
 import type {
   CircuitJsonElementRef,
+  EnclosureBoardComponent,
   EnclosureFace,
   EnclosureMechanicalInput,
   EnclosureMountInput,
@@ -19,7 +22,22 @@ import type {
 } from "../hardware"
 import type { FdmDesignRules } from "./design-rules"
 
+/**
+ * Actual body geometry in board-local right-handed XYZ, Z-up millimetres.
+ * The board midplane is Z=0. No additional center/layer transform is applied.
+ * Boolean checks require a closed solid with consistently outward-wound faces.
+ */
+export type FdmComponentSolid =
+  | { type: "jscad"; jscadPlan: JscadOperation }
+  | { type: "triangle_mesh"; positions: number[]; indices?: number[] }
+
+export interface FdmBoardComponent extends EnclosureBoardComponent {
+  /** Preferred over the conservative body envelope when available. */
+  solid?: FdmComponentSolid
+}
+
 export interface CreateFdmEnclosureInput extends EnclosureMechanicalInput {
+  components?: FdmBoardComponent[]
   /** Lid top-plate thickness. Defaults to wallThickness. */
   lidThickness?: number
   /** Gap between the inside floor and PCB bottom. Defaults to 4 mm. */
@@ -53,6 +71,7 @@ export interface ResolvedFdmEnclosureDimensions
  * no stage re-applies a default, a fallback, or a validation rule.
  */
 export interface ResolvedFdmEnclosureInput extends ResolvedEnclosureInput {
+  components?: FdmBoardComponent[]
   construction: "fdm_box"
   dimensions: ResolvedFdmEnclosureDimensions
   rules: FdmDesignRules
@@ -119,7 +138,9 @@ export interface HardwareOccurrence {
    * consumes it.
    */
   generatedBy?: CircuitJsonElementRef
-  /** Where the piece sits, in enclosure-local coordinates. */
+  /** Part-local to enclosure-local right-handed Z-up mm transform. */
+  enclosureFromPart: Matrix4
+  /** Legacy translation boundary; actual part origin, not a mating target datum. */
   position: { x: number; y: number; z: number }
 }
 
@@ -153,6 +174,8 @@ export interface ResolvedFdmMount {
   lidColumn?: { bottomZ: number; topZ: number; diameterMm: number }
   /** Absent for a self-tapping mount, which consumes no insert. */
   insert?: InsertSpec
+  installation: FdmInstallationPolicy
+  fastener: ResolvedThreadedFastener
   headRecess: HeadRecess
   headSpec: ScrewHeadSpec
   screwClearanceDiameterMm: number
@@ -194,6 +217,7 @@ export type FdmDesignRuleId =
   | "board_edge_clearance"
   /** A part in the way of a mounting feature, with no envelope to decide by. */
   | "component_bounds_unknown"
+  | "printed_part_clearance"
 
 export interface FdmDesignRuleViolation {
   rule: FdmDesignRuleId

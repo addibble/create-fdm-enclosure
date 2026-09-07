@@ -94,21 +94,18 @@ export class CreateFdmEnclosureSolver extends BasePipelineSolver<CreateFdmEnclos
         "createFdmApertureCutoutsSolver",
       ).getOutput(),
       mounts: resolved.mounts,
-      // Measured against the aperture solver's own tool depths rather than a
-      // second derivation of them, so a check can only ever describe the
-      // geometry that is actually subtracted.
+      // DRC consumes the same placed cutters and finished parts as composition.
       designRuleViolations: checkFdmDesignRules({
         dimensions: resolved.dimensions,
         components: resolved.components,
         board: resolved.board,
         mounts: resolved.mounts,
         placements: resolved.apertures,
-        cutDepths: requireStage(
+        apertures: requireStage(
           this.createFdmApertureCutoutsSolver,
           "createFdmApertureCutoutsSolver",
-        )
-          .getOutput()
-          .map((aperture) => aperture.cutDepth),
+        ).getOutput(),
+        parts: composedPlans.parts,
         rules: resolved.rules,
       }),
       // Flattened from the mounts rather than accumulated alongside them, so

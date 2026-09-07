@@ -34,6 +34,7 @@
     "format:check": "biome format ."
   },
   "dependencies": {
+    "@jscad/modeling": "^2.13.0",
     "@tscircuit/math-utils": "^0.0.36",
     "@tscircuit/solver-utils": "^0.0.19",
     "format-si-unit": "^0.0.12",

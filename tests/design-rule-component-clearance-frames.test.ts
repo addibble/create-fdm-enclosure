@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 import { checkComponentClearance } from "../lib/fdm/design-rule-checks/check-component-clearance"
 import { DEFAULT_FDM_DESIGN_RULES } from "../lib/fdm/design-rules"
 import type { ResolvedFdmMount } from "../lib/fdm/types"
+import { resolveFdmEnclosureProblem, type FdmBoardComponent } from "../lib"
 
 const board = { width: 40, height: 24, thickness: 1.6 }
 const dimensions = {
@@ -19,17 +20,23 @@ const dimensions = {
 
 /** Boss diameter 7.2, so a radius of 3.6 about the mount axis. */
 const mountAt = (x: number, y: number): ResolvedFdmMount =>
-  ({
-    mount: { id: "EN1.H1" },
-    center: { x, y },
-    bossDiameterMm: 7.2,
-    bossBottomZ: 2,
-    bossTopZ: 6,
-  }) as unknown as ResolvedFdmMount
+  resolveFdmEnclosureProblem({
+    board,
+    mounts: [
+      {
+        id: "EN1.H1",
+        anchor: { x, y },
+        fastens: "board",
+        thread: "m3",
+        fastening: "heat_set_insert",
+        head: "socketcap",
+      },
+    ],
+  }).mounts[0]!
 
-const run = (component: unknown, mount: ResolvedFdmMount) =>
+const run = (component: FdmBoardComponent, mount: ResolvedFdmMount) =>
   checkComponentClearance({
-    components: [component] as never,
+    components: [component],
     mounts: [mount],
     board,
     dimensions,

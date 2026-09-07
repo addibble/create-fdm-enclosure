@@ -1,5 +1,5 @@
 {
-  "collisionVolume": 9.42970965859224,
+  "collisionVolume": 9.429709658591856,
   "violations": [
     {
       "rule": "board_edge_clearance",
@@ -8,6 +8,14 @@
       "limitMm": 0,
       "mountId": "EN1.H1",
       "message": "The screw boss of mount \"EN1.H1\" reaches 1.60mm past the board edge, so the board bears on only part of it. Move the mount at least 1.60mm inboard."
+    },
+    {
+      "rule": "printed_part_clearance",
+      "severity": "error",
+      "mountId": "EN1.H1",
+      "measuredMm": 0,
+      "limitMm": 0,
+      "message": "The printed lid column of mount \"EN1.H1\" intersects the finished base. The lid cannot seat; move the mount or enlarge the cavity."
     }
   ]
 }

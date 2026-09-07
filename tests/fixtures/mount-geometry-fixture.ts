@@ -84,8 +84,8 @@ export const mountTestHardware = (
     throw new Error(`Fixture requires exactly one modelled ${role}`)
   }
   return {
-    type: "translate",
-    vector: [piece.position.x, piece.position.y, piece.position.z],
+    type: "transform",
+    matrix: piece.enclosureFromPart,
     shape: getAssemblyHardwareModel(piece.hardwareString),
   }
 }

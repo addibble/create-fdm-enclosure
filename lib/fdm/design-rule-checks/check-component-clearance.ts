@@ -1,224 +1,233 @@
+import * as jscad from "@jscad/modeling"
 import { pointToBoxDistance } from "@tscircuit/math-utils"
+import { mat4, vec3 } from "gl-matrix"
 import type {
-  EnclosureBoardComponent,
   EnclosureBoardInput,
-  ResolvedEnclosureInput,
+  ResolvedEnclosureAperture,
 } from "../../enclosure/types"
 import type { FdmDesignRules } from "../design-rules"
+import { createFdmComponentBodyPlan } from "../create-component-body-plan"
+import { createMountFeaturePlans } from "../create-mount-feature-plans"
+import { executeFdmSolid, fdmSolidsIntersect } from "../execute-solid"
+import { getFdmSolidAxisDistanceMm } from "../solid-axis-distance"
 import type {
+  FdmBoardComponent,
   FdmDesignRuleViolation,
   ResolvedFdmEnclosureDimensions,
   ResolvedFdmMount,
 } from "../types"
 
-/**
- * Distance from a mount axis to a part, in millimetres, or `undefined` when
- * nothing supplied bounds it.
- *
- * **The two envelopes a part supplies are in different frames, and cannot be
- * combined into one box.**
- *
- * - `size` is the body in the part's own, unrotated frame, so the rectangle it
- *   actually occupies is found by rotating the axis into that frame -- exact,
- *   including for a part turned 45 degrees.
- * - `footprint` is already an axis-aligned *board-frame* box measured across the
- *   pads. Its orientation has been projected away, so there is nothing to
- *   un-rotate it back to.
- *
- * Each is therefore tested in the frame it is stated in, and the nearer answer
- * wins. "Neither alone bounds the part" is a statement about the part -- a
- * connector shell overhangs its pads, a pad fan reaches past the shell -- not
- * licence to `Math.max` two numbers that mean different things. Doing that read
- * a board-frame width as a part-frame one: for a 20x2mm connector rotated 90
- * degrees, the box came out 20mm wide along the axis the boss approached from
- * when the part is 2mm wide there, and the boss driven straight through it
- * reported nothing. That is a false negative on the one finding this check
- * exists to raise.
- */
-const getAxisToComponentDistanceMm = (
-  component: EnclosureBoardComponent,
-  /** Mount axis relative to the part's centre, in board-frame millimetres. */
-  axisFromComponentCenter: { x: number; y: number },
+/** Used only when missing height prevents constructing even a conservative solid. */
+const planarDistance = (
+  component: FdmBoardComponent,
+  mount: ResolvedFdmMount,
 ): number | undefined => {
-  const { size, footprint, rotation } = component.body
-  const distancesMm: number[] = []
-
-  if (size && size.x > 0 && size.y > 0) {
-    const turn = ((rotation ?? 0) * Math.PI) / 180
-    const axisInPartFrame = {
-      x:
-        axisFromComponentCenter.x * Math.cos(-turn) -
-        axisFromComponentCenter.y * Math.sin(-turn),
-      y:
-        axisFromComponentCenter.x * Math.sin(-turn) +
-        axisFromComponentCenter.y * Math.cos(-turn),
-    }
-    distancesMm.push(
-      pointToBoxDistance(axisInPartFrame, {
-        center: { x: 0, y: 0 },
-        width: size.x,
-        height: size.y,
-      }),
+  const { size, footprint, rotation = 0 } = component.body
+  const axis = [
+    mount.center.x - component.center.x,
+    mount.center.y - component.center.y,
+    0,
+  ]
+  const distances: number[] = []
+  if (size) {
+    const local = vec3.transformMat4(
+      vec3.create(),
+      axis,
+      mat4.fromZRotation(mat4.create(), (-rotation * Math.PI) / 180),
+    )
+    distances.push(
+      pointToBoxDistance(
+        { x: local[0], y: local[1] },
+        {
+          center: { x: 0, y: 0 },
+          width: size.x,
+          height: size.y,
+        },
+      ),
     )
   }
-
-  if (footprint && footprint.width > 0 && footprint.height > 0) {
-    distancesMm.push(
-      pointToBoxDistance(axisFromComponentCenter, {
-        center: { x: 0, y: 0 },
-        width: footprint.width,
-        height: footprint.height,
-      }),
+  if (footprint) {
+    distances.push(
+      pointToBoxDistance(
+        { x: axis[0]!, y: axis[1]! },
+        {
+          center: { x: 0, y: 0 },
+          width: footprint.width,
+          height: footprint.height,
+        },
+      ),
     )
   }
-
-  return distancesMm.length ? Math.min(...distancesMm) : undefined
+  return distances.length ? Math.min(...distances) : undefined
 }
 
-/**
- * How far a part reaches off the board face it is mounted on, or `undefined`
- * when nothing supplied says.
- *
- * `aboveBoardHeight` is the honest number -- derived from measured model bounds
- * about the board surface -- and `size.z` is the fallback for parts that were
- * never measured. `size.z` spans pins and any through-board shell, so it
- * over-reports, which for a clearance check errs towards reporting.
- *
- * Deliberately not defaulted to zero. A part of unknown height is not a part of
- * no height, and treating it as flat is how a clearance check ends up silently
- * passing everything: today most `cad_component` records carry neither field, so
- * a zero default would skip every component ever supplied.
- */
-const getComponentReachMm = (
-  component: EnclosureBoardComponent,
-): number | undefined =>
-  component.body.aboveBoardHeight ?? component.body.size?.z
-
-/**
- * Checks that mounting features leave room for the parts on the board.
- *
- * A floor boss stands between the inside floor and the underside of the board,
- * which is exactly the space a bottom-side part occupies; a lid column runs from
- * the board's top face to the lid, which is where top-side parts are. So each
- * kind of column can only ever foul parts on the side of the board it reaches,
- * and a part on the far side is not its business.
- *
- * Interference here is an error, not a judgement: the board cannot seat. The
- * fix is to move the mount or the part, and neither is something this package
- * can choose.
- */
 export const checkComponentClearance = ({
   components,
   mounts,
   board,
   dimensions,
   rules,
+  apertures = [],
 }: {
-  components: ResolvedEnclosureInput["components"]
+  components: FdmBoardComponent[] | undefined
   mounts: ResolvedFdmMount[]
   board: EnclosureBoardInput
   dimensions: ResolvedFdmEnclosureDimensions
   rules: FdmDesignRules
+  apertures?: ResolvedEnclosureAperture[]
 }): FdmDesignRuleViolation[] => {
-  if (!components?.length) return []
-
+  if (!components?.length || mounts.length === 0) return []
   const boardBottomZ = dimensions.floorThickness + dimensions.standoffHeight
-  const boardTopZ = boardBottomZ + board.thickness
+  const bodies = components.map((component) => {
+    const body = createFdmComponentBodyPlan({
+      component,
+      boardThicknessMm: board.thickness,
+      boardBottomZ,
+    })
+    return { component, body, solid: body && executeFdmSolid(body.jscadPlan) }
+  })
   const violations: FdmDesignRuleViolation[] = []
-  /**
-   * Parts that stand where a mounting feature is, whose envelope does not say
-   * whether they actually touch it. Collected rather than reported inline so a
-   * part near several mounts is named once.
-   */
-  const unmeasuredComponentIds = new Set<string>()
-
+  const unknownIds = new Set<string>()
   for (const mount of mounts) {
-    const columns: Array<{
-      label: string
-      radiusMm: number
-      /** The board face this column reaches parts on. */
-      side: "top" | "bottom"
-      /** How far past that face it reaches. */
-      reachMm: number
-    }> = [
+    const plans = createMountFeaturePlans({
+      mount,
+      rules,
+      lidThicknessMm: dimensions.lidThickness,
+      totalHeightMm: dimensions.depth,
+    })
+    const columns = [
       {
         label: "screw boss",
-        radiusMm: mount.bossDiameterMm / 2,
         side: "bottom",
-        reachMm: boardBottomZ - mount.bossBottomZ,
+        radius: mount.bossDiameterMm / 2,
+        adds: plans.baseAdds,
+        cuts: plans.baseSubtracts,
       },
-    ]
-    if (mount.lidColumn) {
-      columns.push({
+      {
         label: "lid column",
-        radiusMm: mount.lidColumn.diameterMm / 2,
         side: "top",
-        reachMm: mount.lidColumn.topZ - boardTopZ,
+        radius: (mount.lidColumn?.diameterMm ?? 0) / 2,
+        adds: plans.lidAdds,
+        cuts: plans.lidSubtracts,
+      },
+    ] as const
+    for (const column of columns) {
+      if (column.adds.length === 0) continue
+      const solid = executeFdmSolid({
+        type: "subtract",
+        shapes: [
+          { type: "union", shapes: column.adds },
+          ...column.cuts,
+          ...apertures.map(({ jscadPlan }) => jscadPlan),
+        ],
       })
-    }
-
-    for (const component of components) {
-      const componentSide = component.boardSide ?? "top"
-      const distanceMm = getAxisToComponentDistanceMm(component, {
-        x: mount.center.x - component.center.x,
-        y: mount.center.y - component.center.y,
-      })
-      if (distanceMm === undefined) {
-        unmeasuredComponentIds.add(component.id)
-        continue
-      }
-
-      for (const column of columns) {
-        if (column.side !== componentSide) continue
-
-        const clearanceMm = distanceMm - column.radiusMm
-
-        // Clear of each other in plan, so how tall either one is cannot matter.
-        if (clearanceMm >= rules.minComponentClearanceMm) continue
-
-        // Only now does the height decide the answer, which is the one place
-        // worth saying that we do not have it.
-        const componentReachMm = getComponentReachMm(component)
-        if (componentReachMm === undefined) {
-          unmeasuredComponentIds.add(component.id)
+      let clearanceSolid: typeof solid | undefined
+      for (const { component, body, solid: componentSolid } of bodies) {
+        if (!componentSolid) {
+          if ((component.boardSide ?? "top") !== column.side) continue
+          const distance = planarDistance(component, mount)
+          if (
+            distance === undefined ||
+            distance - column.radius < rules.minComponentClearanceMm
+          )
+            unknownIds.add(component.id)
           continue
         }
-        // Neither reaches far enough off the board to be in the other's way.
         if (
-          Math.min(column.reachMm, componentReachMm) <=
-          rules.minComponentClearanceMm
+          jscad.geometries.geom3.toPolygons(componentSolid).length === 0 ||
+          jscad.geometries.geom3.toPolygons(solid).length === 0
         )
           continue
-
+        const intersects = fdmSolidsIntersect(solid, componentSolid)
+        if (!intersects) {
+          if (rules.minComponentClearanceMm <= 0) continue
+          // A true projection of the solid gives a cheap distance lower bound,
+          // unlike its AABB (which includes empty corners of nonconvex parts).
+          if (
+            getFdmSolidAxisDistanceMm(componentSolid, mount.center) -
+              column.radius >=
+            rules.minComponentClearanceMm
+          )
+            continue
+          const [aMin, aMax] = jscad.measurements.measureBoundingBox(solid)
+          const [bMin, bMax] =
+            jscad.measurements.measureBoundingBox(componentSolid)
+          if (
+            [0, 1, 2].some(
+              (axis) =>
+                aMax[axis]! + rules.minComponentClearanceMm <= bMin[axis]! ||
+                bMax[axis]! + rules.minComponentClearanceMm <= aMin[axis]!,
+            )
+          )
+            continue
+          if (
+            jscad.geometries.geom3.toPolygons(componentSolid).length <
+            jscad.geometries.geom3.toPolygons(solid).length
+          ) {
+            const expandedBody = jscad.expansions.expand(
+              {
+                delta: rules.minComponentClearanceMm,
+                corners: "round",
+                segments: 16,
+              },
+              componentSolid,
+            )
+            if (!fdmSolidsIntersect(solid, expandedBody)) continue
+          } else {
+            clearanceSolid ??= jscad.expansions.expand(
+              {
+                delta: rules.minComponentClearanceMm,
+                corners: "round",
+                segments: 16,
+              },
+              solid,
+            )
+            if (!fdmSolidsIntersect(clearanceSolid, componentSolid)) continue
+          }
+        }
+        const fallback =
+          body!.fidelity === "conservative_box"
+            ? " This uses an explicit conservative box envelope, not measured component geometry."
+            : ""
+        const overlapBounds = intersects
+          ? jscad.measurements.measureBoundingBox(
+              jscad.booleans.intersect(solid, componentSolid),
+            )
+          : undefined
+        // Negative values report the smallest occupied axial overlap, not an
+        // AABB-only collision decision. Positive-clearance distance is unknown.
+        const measuredMm = overlapBounds
+          ? -Math.min(
+              ...overlapBounds[0].map(
+                (min, axis) => overlapBounds[1][axis]! - min,
+              ),
+            )
+          : Number.NaN
         violations.push({
           rule: "component_clearance",
-          severity: clearanceMm > 0 ? "warning" : "error",
-          measuredMm: clearanceMm,
+          severity: intersects ? "error" : "warning",
+          measuredMm,
           limitMm: rules.minComponentClearanceMm,
           mountId: mount.mount.id,
           componentId: component.id,
           message:
-            clearanceMm > 0
-              ? `The ${column.label} of mount "${mount.mount.id}" passes ${clearanceMm.toFixed(2)}mm from "${component.id}", closer than the ${rules.minComponentClearanceMm}mm this profile allows.`
-              : `The ${column.label} of mount "${mount.mount.id}" runs through "${component.id}" on the ${componentSide} of the board. The board cannot seat: move the mount or the part.`,
+            (intersects
+              ? `The ${column.label} of mount "${mount.mount.id}" runs through "${component.id}". The board cannot seat: move the mount or the part.`
+              : `The ${column.label} of mount "${mount.mount.id}" passes within ${rules.minComponentClearanceMm}mm of "${component.id}".`) +
+            fallback,
         })
       }
     }
   }
-
-  for (const componentId of unmeasuredComponentIds) {
+  for (const componentId of unknownIds) {
     violations.push({
       rule: "component_bounds_unknown",
-      // Not an error: the design may well be fine. What is certain is that this
-      // check did not decide, and a check that stays silent about that is worse
-      // than no check, because it reads as a pass.
       severity: "warning",
       measuredMm: Number.NaN,
       limitMm: rules.minComponentClearanceMm,
       componentId,
-      message: `"${componentId}" stands where a mounting feature does, but its supplied envelope does not give the extent needed to tell whether they touch. Supply the part's body size, or its height above the board.`,
+      message: `"${componentId}" is near a mounting feature, but no native solid or complete conservative envelope is available to decide clearance. Supply body geometry or body size and height.`,
     })
   }
-
   return violations
 }

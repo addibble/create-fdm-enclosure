@@ -1,7 +1,18 @@
 {
-  "removedColumnVolume": 15.76765278654549,
-  "cutterInsideBoreVolume": 1.0549832584221672,
-  "violations": [],
+  "removedColumnVolume": 15.767652786545401,
+  "cutterInsideBoreVolume": 1.0549832584221974,
+  "violations": [
+    {
+      "rule": "insert_not_encircled",
+      "severity": "error",
+      "measuredMm": -1.7,
+      "limitMm": 1.6,
+      "mountId": "EN1.H1",
+      "apertureIndex": 0,
+      "face": "x_pos",
+      "message": "The x_pos aperture cuts into the lid column of mount \"EN1.H1\", breaking through to its 3.4mm bore. The fastener has no material to hold it."
+    }
+  ],
   "allViolations": [
     {
       "rule": "board_edge_clearance",
@@ -10,6 +21,16 @@
       "limitMm": 0,
       "mountId": "EN1.H1",
       "message": "The screw boss of mount \"EN1.H1\" reaches 0.60mm past the board edge, so the board bears on only part of it. Move the mount at least 0.60mm inboard."
+    },
+    {
+      "rule": "insert_not_encircled",
+      "severity": "error",
+      "measuredMm": -1.7,
+      "limitMm": 1.6,
+      "mountId": "EN1.H1",
+      "apertureIndex": 0,
+      "face": "x_pos",
+      "message": "The x_pos aperture cuts into the lid column of mount \"EN1.H1\", breaking through to its 3.4mm bore. The fastener has no material to hold it."
     }
   ]
 }

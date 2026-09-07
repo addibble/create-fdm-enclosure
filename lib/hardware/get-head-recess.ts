@@ -67,6 +67,11 @@ export const getHeadRecess = ({
     )
   }
   const recess = authoredHeadRecess ?? defaultRecess
+  if (recess === "countersink" && head !== "countersunk") {
+    throw new Error(
+      `${label}: headRecess="countersink" requires a countersunk head, not "${head}"; a cylindrical head cannot seat in a conical recess`,
+    )
+  }
   if (head === "countersunk" && recess !== "countersink") {
     throw new Error(
       `${label}: a countersunk head requires headRecess="countersink", but "${recess}" was given: a conical head bears on its rim on a flat surface, so it neither seats nor clamps`,

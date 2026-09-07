@@ -1,6 +1,12 @@
 import { formatMm } from "format-si-unit"
 import { formatThreadDesignation } from "./get-fastener-designation"
 import { getThreadSpec } from "./select-fastener"
+import {
+  resolveThreadedFastener,
+  type ResolvedThreadedFastener,
+} from "@tscircuit/jscad-assembly-hardware"
+import { DEFAULT_FDM_DESIGN_RULES } from "../fdm/design-rules"
+import { assertPositive } from "../validation/assert-number"
 import type {
   FastenerThread,
   HeadRecess,
@@ -25,7 +31,8 @@ export const getRequiredEngagementMm = (params: {
   insertThreadedLengthMm?: number
 }): number =>
   params.insertThreadedLengthMm ??
-  2 * getThreadSpec(params.thread).nominalDiameterMm
+  DEFAULT_FDM_DESIGN_RULES.selfTapEngagementDiameterRatio *
+    getThreadSpec(params.thread).nominalDiameterMm
 
 /**
  * How far below the surface it bears on the head sits.
@@ -35,31 +42,14 @@ export const getRequiredEngagementMm = (params: {
  * under the head.
  */
 export const getHeadSeatDepthMm = ({
-  headSpec,
+  fastener,
   headRecess,
-  nominalDiameterMm,
 }: {
-  headSpec: ScrewHeadSpec
+  fastener: ResolvedThreadedFastener
   headRecess: HeadRecess
-  /** Needed to derive a countersunk head's real height; see below. */
-  nominalDiameterMm: number
 }): number => {
   if (headRecess === "none") return 0
-  // A counterbore swallows the whole head, so its own height is the depth.
-  if (headRecess === "counterbore") return headSpec.headHeightMm
-  // A countersunk head is NOT `k` tall. `k` is measured to the theoretical
-  // sharp corner, which does not exist in steel -- the real head is truncated
-  // at `dk actual`, and its cone runs from there down to the shank. At M3 that
-  // is 1.27mm against a published k of 1.86mm.
-  //
-  // This must equal what the geometry package draws above its datum, because
-  // that is what the number is FOR: it places the part. Same formula, same
-  // angle, so the two cannot drift.
-  const halfAngleRad =
-    (((headSpec.countersinkAngleDegrees ?? 90) / 2) * Math.PI) / 180
-  return (
-    (headSpec.headDiameterMm - nominalDiameterMm) / 2 / Math.tan(halfAngleRad)
-  )
+  return fastener.head.heightMm
 }
 
 export interface ScrewLengthResolution {
@@ -102,7 +92,6 @@ export interface ScrewLengthResolution {
  */
 export const resolveScrewLength = ({
   thread,
-  headSpec,
   head,
   headRecess,
   clampedThicknessMm,
@@ -156,13 +145,20 @@ export const resolveScrewLength = ({
       `${label}: no stocked ${formatThreadDesignation(thread)} lengths were supplied`,
     )
   }
-  const headSeatDepthMm = getHeadSeatDepthMm({
-    headSpec,
-    headRecess,
-    nominalDiameterMm: getThreadSpec(thread).nominalDiameterMm,
+  if (authoredLengthMm !== undefined)
+    assertPositive(authoredLengthMm, `${label}.length`)
+  const physical = resolveThreadedFastener({
+    fn: "bolt",
+    thread,
+    head,
+    length: availableLengthsMm[availableLengthsMm.length - 1]!,
   })
-  const isOverallLength = head === "countersunk"
-  const headAllowanceMm = isOverallLength ? headSpec.headHeightMm : 0
+  const headSeatDepthMm = getHeadSeatDepthMm({
+    fastener: physical,
+    headRecess,
+  })
+  const headAllowanceMm =
+    physical.lengthConvention === "overall" ? physical.head.heightMm : 0
 
   const requiredUnderHeadLengthMm =
     clampedThicknessMm - headSeatDepthMm + engagementMm
@@ -171,7 +167,12 @@ export const resolveScrewLength = ({
 
   const describe = (designatedLengthMm: number): ScrewLengthResolution => ({
     designatedLengthMm,
-    underHeadLengthMm: designatedLengthMm - headAllowanceMm,
+    underHeadLengthMm: resolveThreadedFastener({
+      fn: "bolt",
+      thread,
+      head,
+      length: designatedLengthMm,
+    }).shaft.lengthMm,
     requiredUnderHeadLengthMm,
     engagementMm:
       designatedLengthMm -

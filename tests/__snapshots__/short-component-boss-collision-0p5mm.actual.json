@@ -1,5 +1,15 @@
 {
   "height": 0.5,
-  "collisionVolume": 0.2876885745803547,
-  "violations": []
+  "collisionVolume": 0.2876885745803539,
+  "violations": [
+    {
+      "rule": "component_clearance",
+      "severity": "error",
+      "measuredMm": -0.5,
+      "limitMm": 0.5,
+      "mountId": "EN1.H1",
+      "componentId": "C1",
+      "message": "The screw boss of mount \"EN1.H1\" runs through \"C1\". The board cannot seat: move the mount or the part. This uses an explicit conservative box envelope, not measured component geometry."
+    }
+  ]
 }

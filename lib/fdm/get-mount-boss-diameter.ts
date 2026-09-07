@@ -1,6 +1,7 @@
-import { getInsertOptions, getThreadSpec } from "../hardware"
+import { getInsertOptions } from "../hardware"
 import type { EnclosureMountInput } from "../enclosure"
 import type { FdmDesignRules } from "./design-rules"
+import { DEFAULT_FDM_DESIGN_RULES } from "./design-rules"
 
 /**
  * Diameter of the hole bored into the printed boss.
@@ -11,10 +12,11 @@ import type { FdmDesignRules } from "./design-rules"
  * the vertical stack -- and therefore the insert length -- has been resolved.
  */
 export const getMountBoreDiameterMm = (
-  mount: Pick<EnclosureMountInput, "thread" | "fastening">,
+  mount: Pick<EnclosureMountInput, "thread" | "fastening" | "pilotDiameter">,
+  rules: FdmDesignRules = DEFAULT_FDM_DESIGN_RULES,
 ): number => {
   if (mount.fastening === "self_tapping") {
-    return getThreadSpec(mount.thread).selfTapPilotMm
+    return mount.pilotDiameter ?? rules.selfTapPilotDiametersMm[mount.thread]
   }
   const options = getInsertOptions(mount.thread, mount.fastening)
   const diameters = new Set(
@@ -44,11 +46,15 @@ export const getMountBoreDiameterMm = (
 export const getMountBossDiameterMm = ({
   mount,
   rules,
+  boreDiameterMm = getMountBoreDiameterMm(mount, rules),
 }: {
-  mount: Pick<EnclosureMountInput, "thread" | "fastening" | "bossDiameter">
+  mount: Pick<
+    EnclosureMountInput,
+    "thread" | "fastening" | "bossDiameter" | "pilotDiameter"
+  >
   rules: FdmDesignRules
+  boreDiameterMm?: number
 }): number => {
-  const boreDiameterMm = getMountBoreDiameterMm(mount)
   const derived = boreDiameterMm + 2 * rules.minInsertWallMm
   if (mount.bossDiameter === undefined) return derived
   if (mount.bossDiameter < boreDiameterMm + 2 * rules.minInsertWallMm) {

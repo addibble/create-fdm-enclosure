@@ -66,7 +66,7 @@ test("a countersunk screw's designated length includes its head", () => {
   // larger, and treating them alike orders every countersunk screw 1.65mm short.
   expect(
     countersunk.designatedLengthMm - countersunk.underHeadLengthMm,
-  ).toBeCloseTo(getScrewHeadSpec("m3", "countersunk").headHeightMm)
+  ).toBeCloseTo(1.27)
   expect(socketCap.designatedLengthMm - socketCap.underHeadLengthMm).toBe(0)
 
   // 3.2 clamped - 1.27 of buried head + 5.5 engagement = 7.43 needed under the
@@ -76,7 +76,7 @@ test("a countersunk screw's designated length includes its head", () => {
   // real one, because the same number places the part.
   expect(countersunk.requiredUnderHeadLengthMm).toBeCloseTo(7.43)
   expect(countersunk.designatedLengthMm).toBe(10)
-  expect(countersunk.underHeadLengthMm).toBeCloseTo(8.14)
+  expect(countersunk.underHeadLengthMm).toBeCloseTo(8.73)
 })
 
 test("rounding up stops at the length that would bottom out", () => {

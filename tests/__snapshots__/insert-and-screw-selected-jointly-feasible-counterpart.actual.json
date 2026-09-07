@@ -1,12 +1,10 @@
 {
   "rejections": [
     {
-      "authoredLength": "automatic",
-      "rejection": "EN1.H1: no stocked M3 screw fits this stack -- it needs at least 7.3mm to engage and at most 7.8mm before it bottoms out, and the stocked lengths either side are 6mm and 8mm"
+      "authoredLength": "automatic"
     },
     {
-      "authoredLength": 5,
-      "rejection": "EN1.H1: an authored M3x5 screw engages only 3.4mm of thread, but this stack needs 5.7mm"
+      "authoredLength": 5
     }
   ],
   "counterpart": {

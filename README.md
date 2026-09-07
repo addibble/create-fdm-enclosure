@@ -14,8 +14,62 @@ Implemented today:
 - injectable FDM design rules; and
 - one typed `cad_fdm_enclosure` record per printed part through core.
 
-Mounting bosses, inserts, fasteners, assembly DRC, full component-body clearance,
-and non-FDM processes remain future work.
+The feature branch also resolves mounting bosses, inserts, fasteners and
+board-to-lid supports, and checks their finished solids for assembly interference.
+Non-FDM processes remain future work.
+
+## Mounting installation policy
+
+`EnclosureMountInput` accepts `threadEngagement`, `pilotDiameter` and
+`bottomClearance` in millimetres for a self-tapping screw, plus
+`insertBottomClearance` for an insert. `boreEntryChamfer` and
+`insertBoreEntryChamfer` are dimensionless **mouth diameter / installation bore
+diameter** ratios, not ratios of the nominal thread diameter. The default is
+1.2; 1 means no chamfer. The 45-degree lead-in depth follows from the two radii.
+
+This package owns installation policy. Authored values override the selected
+insert's `installationRecommendations`, which override the injected `fdmRules`
+profile. Props/adapters only parse and forward values. Defaults are two nominal
+diameters of self-tapping engagement, the profile's material-specific pilot
+diameters, 1 mm below a self-tapping screw tip, and 0.5 mm below an insert.
+An insert mount reserves no additional screw-tip clearance unless authored.
+Authored constraints are validated, never clamped to make hardware fit.
+
+Insert and screw selection is joint: only complete feasible pairs are ranked by
+insert preference. A 5 mm M3 standoff can use the short 3 mm insert and a stocked
+5 mm screw even when the preferred 5.7 mm insert leaves no stocked screw length.
+The hardware package resolves physical head height, length convention and local
+datum matrices. An M3 countersunk head contributes its actual 1.27 mm, not the
+theoretical ISO sharp-corner height. Each hardware occurrence carries
+`enclosureFromPart = enclosureFromTarget * inverse(partFromDatum)`, with legacy
+`position` retained as the model-origin translation. A spacer's upper-face datum
+is placed at the lid underside; the part extends down toward the board.
+
+## Native component solids and mechanical DRC
+
+`CreateFdmEnclosureInput.components` accepts `FdmBoardComponent` records. The
+optional `solid` is either `{ type: "jscad", jscadPlan }` or
+`{ type: "triangle_mesh", positions, indices? }`. Mesh positions are flat XYZ
+triples; omitted indices mean consecutive triangles. Supply closed,
+consistently wound surfaces. Both forms are already in **board-local**,
+right-handed Z-up millimetres with the PCB midplane at Z=0. Core owns component
+model placement; the solver alone applies the board-to-enclosure matrix.
+
+The canonical `createFdmComponentBodyPlan` uses native geometry when supplied.
+It does not replace a native body's empty corners with its bounds or apply the
+fallback center/layer transform a second time. Without native geometry, the
+existing body/footprint envelopes produce an explicitly conservative box
+fallback, named as such in collision diagnostics. Missing bounds are reported
+as unknown, not treated as an empty component.
+
+DRC executes the exact aperture `jscadPlan` consumed by composition and the
+finished printed parts. AABBs only reject pairs early; positive intersections
+are decided by solids, even when a component is shorter than the clearance
+threshold. Lid-column checks use the lid's clearance bore rather than the
+base's installation bore, and lid/base interference is an assembly error.
+Component collision `measuredMm` is the negative smallest axial extent of the
+intersection; close-but-separated warnings leave it unknown (`NaN`) rather than
+presenting a bounding-box distance as an exact measurement.
 
 ## Circuit authoring
 
