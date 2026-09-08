@@ -30,6 +30,7 @@ import { assertPositive, assertNonNegative } from "../validation/assert-number"
 import type { FdmDesignRules } from "./design-rules"
 import { selectFdmMountHardware } from "./select-mount-hardware"
 import { parseEnclosureMountHead } from "./parse-enclosure-mount-head"
+import { assertEnclosureMountThread } from "./assert-enclosure-mount-thread"
 import { createFdmMatrix, getFdmHardwarePlacement } from "./placement-matrix"
 import type { HardwareOccurrence, ResolvedFdmMount } from "./types"
 
@@ -46,6 +47,7 @@ export const resolveFdmMount = ({
   boardThicknessMm: number
   rules: FdmDesignRules
 }): ResolvedFdmMount => {
+  assertEnclosureMountThread(mount)
   const head = parseEnclosureMountHead(mount)
   const threadSpec = getThreadSpec(mount.thread)
   const headSpec = getScrewHeadSpec(mount.thread, head, mount.id)

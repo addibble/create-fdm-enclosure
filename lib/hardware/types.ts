@@ -3,12 +3,10 @@
  *
  * ## Where these come from
  *
- * The *vocabulary* (`FastenerThread`, `ScrewHead`) is `@tscircuit/modelprinter`'s,
- * which is also `@tscircuit/props`' -- so the string an author writes, the token
- * in a model string, and the key this solver looks up are one spelling. They
- * were three (`m3`/`M3`, `socketcap`/`socket_cap`, `panhead`/`pan`), and the
- * translation existed in one direction only, so every solver error told authors
- * to write `head="socketcap"`, which props rejects.
+ * The validated *vocabulary* (`FastenerThread`, `ScrewHead`) belongs to
+ * `@tscircuit/modelprinter`. Props accepts nonempty strings, core forwards them
+ * unchanged, and the enclosure boundary validates them before catalogue lookup.
+ * Neither props nor core needs a copy of the supported vocabulary.
  *
  * The *catalogue* (`ThreadSpec`, `ScrewHeadSpec`, `InsertSpec` and their tables)
  * is `@tscircuit/jscad-assembly-hardware`'s. This package held a byte-for-byte

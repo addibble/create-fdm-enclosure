@@ -4,6 +4,7 @@ import { getHeadRecess, getHeadRecessDepthMm, getThreadSpec } from "../hardware"
 import type { FdmDesignRules } from "./design-rules"
 import { resolveThreadedFastener } from "@tscircuit/jscad-assembly-hardware"
 import { parseEnclosureMountHead } from "./parse-enclosure-mount-head"
+import { assertEnclosureMountThread } from "./assert-enclosure-mount-thread"
 
 /**
  * How thick the lid must be to carry its screw heads.
@@ -28,6 +29,7 @@ export const getLidMountMinimumThicknessMm = ({
 }): { value: number; because: string } | undefined => {
   let minimum: { value: number; because: string } | undefined
   for (const mount of mounts) {
+    assertEnclosureMountThread(mount)
     if (mount.fastens !== "lid") continue
     const head = parseEnclosureMountHead(mount)
     const headRecess = getHeadRecess({

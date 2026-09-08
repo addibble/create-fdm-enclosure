@@ -2,6 +2,7 @@ import type { EnclosureMountInput } from "../enclosure"
 import { getThreadSpec, type InsertSpec } from "../hardware"
 import { assertNonNegative, assertPositive } from "../validation/assert-number"
 import type { FdmDesignRules } from "./design-rules"
+import { assertEnclosureMountThread } from "./assert-enclosure-mount-thread"
 
 export interface FdmInstallationPolicy {
   boreDiameterMm: number
@@ -23,6 +24,7 @@ export const resolveFdmInstallationPolicy = ({
   insert?: FdmInsertSpec
   rules: FdmDesignRules
 }): FdmInstallationPolicy => {
+  assertEnclosureMountThread(mount)
   const thread = getThreadSpec(mount.thread)
   for (const key of [
     "threadEngagement",

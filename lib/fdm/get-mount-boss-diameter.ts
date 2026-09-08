@@ -2,6 +2,7 @@ import { getInsertOptions } from "../hardware"
 import type { EnclosureMountInput } from "../enclosure"
 import type { FdmDesignRules } from "./design-rules"
 import { DEFAULT_FDM_DESIGN_RULES } from "./design-rules"
+import { assertEnclosureMountThread } from "./assert-enclosure-mount-thread"
 
 /**
  * Diameter of the hole bored into the printed boss.
@@ -15,6 +16,7 @@ export const getMountBoreDiameterMm = (
   mount: Pick<EnclosureMountInput, "thread" | "fastening" | "pilotDiameter">,
   rules: FdmDesignRules = DEFAULT_FDM_DESIGN_RULES,
 ): number => {
+  assertEnclosureMountThread(mount)
   if (mount.fastening === "self_tapping") {
     return mount.pilotDiameter ?? rules.selfTapPilotDiametersMm[mount.thread]
   }

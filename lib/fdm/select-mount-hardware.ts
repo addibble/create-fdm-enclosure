@@ -13,6 +13,7 @@ import type { FdmDesignRules } from "./design-rules"
 import { getMountBossDiameterMm } from "./get-mount-boss-diameter"
 import { resolveFdmInstallationPolicy } from "./resolve-installation-policy"
 import { parseEnclosureMountHead } from "./parse-enclosure-mount-head"
+import { assertEnclosureMountThread } from "./assert-enclosure-mount-thread"
 
 /**
  * Enumerate complete insert/fastener pairs before applying the catalogue's
@@ -33,6 +34,7 @@ export const selectFdmMountHardware = ({
   availableBoreDepthMm: number
   bossHeightMm: number
 }) => {
+  assertEnclosureMountThread(mount)
   const head = parseEnclosureMountHead(mount)
   const thread = getThreadSpec(mount.thread)
   const headSpec = getScrewHeadSpec(mount.thread, head, mount.id)

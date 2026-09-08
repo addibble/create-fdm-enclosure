@@ -1,9 +1,5 @@
 import type { JscadOperation } from "jscad-planner"
-import type {
-  FastenerThread,
-  FasteningMethod,
-  HeadRecess,
-} from "../hardware/types"
+import type { FasteningMethod, HeadRecess } from "../hardware/types"
 import type { EnclosureComponentBody } from "./component-body"
 
 /**
@@ -391,7 +387,8 @@ export interface EnclosureMountInput {
   lidColumn?: "printed" | "spacer" | "none"
   /** Board-relative position, in board XY -- as apertures are. */
   anchor: { x: number; y: number }
-  thread: FastenerThread
+  /** Required authored designation; validated before catalogue lookup or sizing. */
+  thread: string
   fastening: FasteningMethod
   /** Authored name; validated downstream. Omission selects socketcap. */
   head?: string

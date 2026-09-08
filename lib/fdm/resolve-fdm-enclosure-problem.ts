@@ -20,6 +20,7 @@ import {
 import { resolveFdmEnclosureDimensions } from "./resolve-fdm-enclosure-dimensions"
 import { resolveFdmEnclosureFrame } from "./resolve-fdm-enclosure-frame"
 import { resolveFdmMount } from "./resolve-fdm-mount"
+import { assertEnclosureMountThread } from "./assert-enclosure-mount-thread"
 import type {
   CreateFdmEnclosureInput,
   ResolvedFdmEnclosureInput,
@@ -46,6 +47,9 @@ import type {
 export const resolveFdmEnclosureProblem = (
   input: CreateFdmEnclosureInput,
 ): ResolvedFdmEnclosureInput => {
+  for (const mount of input.mounts ?? []) {
+    assertEnclosureMountThread(mount)
+  }
   const rules: FdmDesignRules = {
     ...DEFAULT_FDM_DESIGN_RULES,
     ...input.fdmRules,
