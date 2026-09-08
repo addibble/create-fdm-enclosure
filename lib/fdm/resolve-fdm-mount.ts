@@ -29,6 +29,7 @@ import {
 import { assertPositive, assertNonNegative } from "../validation/assert-number"
 import type { FdmDesignRules } from "./design-rules"
 import { selectFdmMountHardware } from "./select-mount-hardware"
+import { parseEnclosureMountHead } from "./parse-enclosure-mount-head"
 import { createFdmMatrix, getFdmHardwarePlacement } from "./placement-matrix"
 import type { HardwareOccurrence, ResolvedFdmMount } from "./types"
 
@@ -45,12 +46,13 @@ export const resolveFdmMount = ({
   boardThicknessMm: number
   rules: FdmDesignRules
 }): ResolvedFdmMount => {
+  const head = parseEnclosureMountHead(mount)
   const threadSpec = getThreadSpec(mount.thread)
-  const headSpec = getScrewHeadSpec(mount.thread, mount.head)
+  const headSpec = getScrewHeadSpec(mount.thread, head, mount.id)
   const center = { x: mount.anchor.x, y: mount.anchor.y }
   const fastensLid = mount.fastens === "lid"
   const headRecess = getHeadRecess({
-    head: mount.head,
+    head,
     authoredHeadRecess: mount.headRecess,
     hasMachinableSeat: fastensLid,
     label: mount.id,
@@ -124,12 +126,12 @@ export const resolveFdmMount = ({
       hardwareString: getThreadedFastenerHardwareString({
         thread: mount.thread,
         designatedLengthMm: screwLength.designatedLengthMm,
-        head: mount.head,
+        head,
         fastening: mount.fastening,
       }),
       displayValue: getScrewDisplayValue({
         thread: mount.thread,
-        head: mount.head,
+        head,
         designatedLengthMm: screwLength.designatedLengthMm,
       }),
       manufacturerPartNumber: mount.manufacturerPartNumber,

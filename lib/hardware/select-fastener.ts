@@ -40,6 +40,7 @@ export const getThreadSpec = (thread: FastenerThread): ThreadSpec => {
 export const getScrewHeadSpec = (
   thread: FastenerThread,
   head: ScrewHead,
+  label?: string,
 ): ScrewHeadSpec => {
   const byHead = getThreadSpec(thread) && SCREW_HEAD_SPECS[thread]
   const spec = byHead?.[head]
@@ -51,7 +52,7 @@ export const getScrewHeadSpec = (
       // the AUTHOR must type them, because that sentence is an instruction --
       // these used to be the solver's own spelling (`socket_cap`, `pan`), every
       // one of which `@tscircuit/props` rejects.
-      `No stocked ${formatThreadDesignation(thread)} screw with a ${head} head. Available head styles: ${available}`,
+      `${label ? `${label}: ` : ""}No stocked ${formatThreadDesignation(thread)} screw with a ${head} head. Available head styles: ${available}`,
     )
   }
   return spec

@@ -12,6 +12,7 @@ import {
 import type { FdmDesignRules } from "./design-rules"
 import { getMountBossDiameterMm } from "./get-mount-boss-diameter"
 import { resolveFdmInstallationPolicy } from "./resolve-installation-policy"
+import { parseEnclosureMountHead } from "./parse-enclosure-mount-head"
 
 /**
  * Enumerate complete insert/fastener pairs before applying the catalogue's
@@ -32,13 +33,14 @@ export const selectFdmMountHardware = ({
   availableBoreDepthMm: number
   bossHeightMm: number
 }) => {
+  const head = parseEnclosureMountHead(mount)
   const thread = getThreadSpec(mount.thread)
-  const headSpec = getScrewHeadSpec(mount.thread, mount.head)
+  const headSpec = getScrewHeadSpec(mount.thread, head, mount.id)
   const fn = mount.fastening === "self_tapping" ? "screw" : "bolt"
   const reference = resolveThreadedFastener({
     fn,
     thread: mount.thread,
-    head: mount.head,
+    head,
     length: thread.availableLengthsMm.at(-1)!,
   })
   const headSeatDepthMm = getHeadSeatDepthMm({
@@ -104,7 +106,7 @@ export const selectFdmMountHardware = ({
         resolveThreadedFastener({
           fn,
           thread: mount.thread,
-          head: mount.head,
+          head,
           length,
         }),
       )
@@ -121,7 +123,7 @@ export const selectFdmMountHardware = ({
     }
     const screwLength = resolveScrewLength({
       thread: mount.thread,
-      head: mount.head,
+      head,
       headSpec,
       headRecess,
       clampedThicknessMm,

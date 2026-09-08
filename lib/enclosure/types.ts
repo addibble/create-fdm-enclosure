@@ -3,7 +3,6 @@ import type {
   FastenerThread,
   FasteningMethod,
   HeadRecess,
-  ScrewHead,
 } from "../hardware/types"
 import type { EnclosureComponentBody } from "./component-body"
 
@@ -394,7 +393,8 @@ export interface EnclosureMountInput {
   anchor: { x: number; y: number }
   thread: FastenerThread
   fastening: FasteningMethod
-  head: ScrewHead
+  /** Authored name; validated downstream. Omission selects socketcap. */
+  head?: string
   /** Derived from `head` when omitted, and forced to `none` on a PCB mount. */
   headRecess?: HeadRecess
   /** Pins the screw length. Normally derived from the stack and rounded. */

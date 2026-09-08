@@ -3,6 +3,7 @@ import type { EnclosureMountInput } from "../enclosure"
 import { getHeadRecess, getHeadRecessDepthMm, getThreadSpec } from "../hardware"
 import type { FdmDesignRules } from "./design-rules"
 import { resolveThreadedFastener } from "@tscircuit/jscad-assembly-hardware"
+import { parseEnclosureMountHead } from "./parse-enclosure-mount-head"
 
 /**
  * How thick the lid must be to carry its screw heads.
@@ -28,8 +29,9 @@ export const getLidMountMinimumThicknessMm = ({
   let minimum: { value: number; because: string } | undefined
   for (const mount of mounts) {
     if (mount.fastens !== "lid") continue
+    const head = parseEnclosureMountHead(mount)
     const headRecess = getHeadRecess({
-      head: mount.head,
+      head,
       authoredHeadRecess: mount.headRecess,
       hasMachinableSeat: true,
       label: mount.id,
@@ -39,7 +41,7 @@ export const getLidMountMinimumThicknessMm = ({
       fastener: resolveThreadedFastener({
         fn: mount.fastening === "self_tapping" ? "screw" : "bolt",
         thread: mount.thread,
-        head: mount.head,
+        head,
         length: getThreadSpec(mount.thread).availableLengthsMm.at(-1)!,
       }),
       headRecess,
